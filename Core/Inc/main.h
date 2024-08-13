@@ -31,6 +31,7 @@ extern "C" {
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#define APPLICATION_ADDRESS 0x08008000
 
 /* USER CODE END Includes */
 

@@ -22,16 +22,21 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "ov2640.h"
-//#include "stdio.h"
+#define HEIGHT 480
+#include "stdio.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-
+#define SRAM_ADDR_BEGIN 0x68000000UL
+#define SRAM_ADDR_HALF 0x68080000UL
+#define SRAM_ADDR_END 0x680FFFFFUL
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+static  uint32_t testsram[160000]  __attribute__((section(".sram")));
+static int index=0;
 
 #ifdef __GNUC__
 #define PUTCHAR_PROTOTYPE int __io_putchar(int ch)
@@ -45,6 +50,7 @@ PUTCHAR_PROTOTYPE {
 	return ch;
 }
 
+uint32_t testsram2[16000]={0};
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -60,7 +66,7 @@ uint8_t ov2640_verh = 0xff, ov2640_verl = 0xff;
 
 HAL_StatusTypeDef dcmi_dma_status = HAL_OK;
 
-uint32_t dcmi_data_buff[16000] = { 0 };
+//uint32_t dcmi_data_buff[16000] = { 0 };
 //11328
 uint32_t DCMI_RN = 0;  //row number
 uint32_t DCMI_CN = 0;  //column number
@@ -78,6 +84,8 @@ DMA_HandleTypeDef hdma_dcmi;
 UART_HandleTypeDef huart4;
 DMA_HandleTypeDef hdma_uart4_tx;
 
+SRAM_HandleTypeDef hsram3;
+
 /* USER CODE BEGIN PV */
 
 /* USER CODE END PV */
@@ -88,6 +96,7 @@ static void MX_GPIO_Init(void);
 static void MX_DMA_Init(void);
 static void MX_DCMI_Init(void);
 static void MX_UART4_Init(void);
+static void MX_FSMC_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -128,78 +137,104 @@ int main(void)
   MX_DMA_Init();
   MX_DCMI_Init();
   MX_UART4_Init();
+  MX_FSMC_Init();
   /* USER CODE BEGIN 2 */
-  PY_OV2640_RGB565_CONFIG();
-
+    PY_OV2640_RGB565_CONFIG();
+	char *sa="helloworldiamtheawesomeman";
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
 	while (1) {
-//		DCMI_DMA_MemInc_En();
-//		dcmi_dma_status = HAL_DCMI_Init(&hdcmi);
-//
-//		for (uint8_t i = 0; i < 10; i++) {
-//			HAL_DCMI_DisableCrop(&hdcmi);
-//
-//			DCMI_RN = 48;
-//			DCMI_CN = 236*2;
-//
-//			DCMI_RS = 48 * i;
-//			DCMI_CS = 0;
-//
-//			HAL_DCMI_ConfigCrop(&hdcmi, DCMI_CS, DCMI_RS, DCMI_CN, DCMI_RN);
-//			HAL_Delay(1);
-//			HAL_DCMI_EnableCrop(&hdcmi);
-//			HAL_Delay(1);
-//
-//			dcmi_dma_status = HAL_DCMI_Start_DMA(&hdcmi, DCMI_MODE_SNAPSHOT,
-//					dcmi_data_buff, DCMI_CN * DCMI_RN / 4);
-//
-//			while (HAL_DMA_GetState(&hdcmi) == HAL_DMA_STATE_BUSY)
-//				;
-//
-//			HAL_DCMI_Stop(&hdcmi);
-//			HAL_UART_Transmit_DMA(&huart4, (uint8_t*) dcmi_data_buff, 22656);
-//			HAL_Delay(20000);
-//
-//
-//		}
-//
+
 				HAL_Delay(1);
 				DCMI_DMA_MemInc_En();
 				dcmi_dma_status = HAL_DCMI_Init(&hdcmi);
-	    	 for (uint8_t i=0; i<10;i++)
+	    	 for (uint8_t i=0; i<1;i++)
 	    	  {
 		 		     HAL_DCMI_DisableCrop (&hdcmi);
-
-		 	    	 DCMI_RN = 48;
+		 	    	 DCMI_RN = HEIGHT;
 		 	    	 DCMI_CN = 1280;
-
-		 	    	 DCMI_RS = 48*i;
-
+		 	    	 DCMI_RS = i*HEIGHT;
+		 	    	 int offset=1280*HEIGHT*i;
 		 	    	 DCMI_CS = 0;
-
 		 	    	 HAL_DCMI_ConfigCrop (&hdcmi, DCMI_CS, DCMI_RS, DCMI_CN, DCMI_RN);
 		 	    	 HAL_Delay(1);
 		 	    	 HAL_DCMI_EnableCrop (&hdcmi);
 		 	    	 HAL_Delay(1);
-
-		 	    	 dcmi_dma_status = HAL_DCMI_Start_DMA(&hdcmi, DCMI_MODE_SNAPSHOT, (uint8_t*)dcmi_data_buff,DCMI_CN*DCMI_RN/4);
+		 	    	 dcmi_dma_status = HAL_DCMI_Start_DMA(&hdcmi, DCMI_MODE_SNAPSHOT, (uint8_t*)(testsram+offset),DCMI_CN*DCMI_RN/4);
 	                 while(HAL_DMA_GetState(&hdcmi)==HAL_DMA_STATE_BUSY) ;
 	 	 	    	 HAL_DCMI_Stop(&hdcmi);
-	 	 	    	 tx_busy = 1;
-	 	 	    	HAL_UART_Transmit_DMA(&huart4, (uint8_t *)dcmi_data_buff, 61440);
-	 	 	    	while(tx_busy!=0) ;
 
+//	 	 	       tx_busy = 1;
+//	 	 	   	    	 	 	  HAL_UART_Transmit_DMA(&huart4, (uint8_t *)(testsram+offset), 61440);
+//	 	 	   	    	 	 	    	while(tx_busy!=0) ;
+	 	 	   	    	 	 	    //	break;
 
 
 
 	    	 }
+	 	 	    	 index=0;
+	       	 for(index=0;index<10;index++ ){
+	    		 	 	    tx_busy = 1;
+	    	 	 	    	int offset=1280*HEIGHT*index;
+	    	 	 	    	HAL_UART_Transmit_DMA(&huart4, (uint8_t *)(testsram+offset), 61440);
+	    	 	 	    	while(tx_busy!=0) ;
+
+	    	 	 	    	 }
 
 
 
-			    	 HAL_Delay(500000);
+
+
+
+
+
+
+
+
+//	 	 	    	 for (uint8_t i=0; i<10;i++)
+//	 	 	    		    	  {
+//	 	 	    			 		     HAL_DCMI_DisableCrop (&hdcmi);
+//
+//	 	 	    			 	    	 DCMI_RN = 48;
+//	 	 	    			 	    	 DCMI_CN = 1280;
+//
+//	 	 	    			 	    	 DCMI_RS = 48*i;
+//
+//	 	 	    			 	    	 DCMI_CS = 0;
+//
+//	 	 	    			 	    	 HAL_DCMI_ConfigCrop (&hdcmi, DCMI_CS, DCMI_RS, DCMI_CN, DCMI_RN);
+//	 	 	    			 	    	 HAL_Delay(1);
+//	 	 	    			 	    	 HAL_DCMI_EnableCrop (&hdcmi);
+//	 	 	    			 	    	 HAL_Delay(1);
+//
+//	 	 	    			 	    	 dcmi_dma_status = HAL_DCMI_Start_DMA(&hdcmi, DCMI_MODE_SNAPSHOT, (uint8_t*)testsram,DCMI_CN*DCMI_RN/4);
+//	 	 	    		                 while(HAL_DMA_GetState(&hdcmi)==HAL_DMA_STATE_BUSY) ;
+//	 	 	    		 	 	    	 HAL_DCMI_Stop(&hdcmi);
+//	 	 	    		 	 	    	 tx_busy = 1;
+//	 	 	    		 	 	    	HAL_UART_Transmit_DMA(&huart4, (uint8_t *)testsram, 61440);
+//	 	 	    		 	 	    	while(tx_busy!=0) ;
+//
+//
+//
+//
+//	 	 	    		    	 }
+
+
+	    	 HAL_Delay(5000000);
+
+//		for(int i=0;i<15;i+=1){
+//
+//			printf("read data %d=%lu,testsram  %p\n",i,testsram[i],&testsram[i]);
+//
+//
+//	    	 HAL_Delay(2000);
+//
+//		}
+
+
+
 
 
 
@@ -290,7 +325,7 @@ static void MX_DCMI_Init(void)
   hdcmi.Init.PCKPolarity = DCMI_PCKPOLARITY_RISING;
   hdcmi.Init.VSPolarity = DCMI_VSPOLARITY_LOW;
   hdcmi.Init.HSPolarity = DCMI_HSPOLARITY_LOW;
-  hdcmi.Init.CaptureRate = DCMI_CR_ALTERNATE_2_FRAME;
+  hdcmi.Init.CaptureRate = DCMI_CR_ALL_FRAME;
   hdcmi.Init.ExtendedDataMode = DCMI_EXTEND_DATA_8B;
   hdcmi.Init.JPEGMode = DCMI_JPEG_DISABLE;
   if (HAL_DCMI_Init(&hdcmi) != HAL_OK)
@@ -348,7 +383,7 @@ static void MX_DMA_Init(void)
 
   /* DMA interrupt init */
   /* DMA1_Stream4_IRQn interrupt configuration */
-  HAL_NVIC_SetPriority(DMA1_Stream4_IRQn, 0, 0);
+  HAL_NVIC_SetPriority(DMA1_Stream4_IRQn, 1, 0);
   HAL_NVIC_EnableIRQ(DMA1_Stream4_IRQn);
   /* DMA2_Stream1_IRQn interrupt configuration */
   HAL_NVIC_SetPriority(DMA2_Stream1_IRQn, 0, 0);
@@ -367,11 +402,12 @@ static void MX_GPIO_Init(void)
 
   /* GPIO Ports Clock Enable */
   __HAL_RCC_GPIOE_CLK_ENABLE();
+  __HAL_RCC_GPIOF_CLK_ENABLE();
   __HAL_RCC_GPIOH_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
-  __HAL_RCC_GPIOC_CLK_ENABLE();
-  __HAL_RCC_GPIOD_CLK_ENABLE();
   __HAL_RCC_GPIOG_CLK_ENABLE();
+  __HAL_RCC_GPIOD_CLK_ENABLE();
+  __HAL_RCC_GPIOC_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
@@ -422,6 +458,59 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOG, &GPIO_InitStruct);
 
+}
+
+/* FSMC initialization function */
+static void MX_FSMC_Init(void)
+{
+
+  /* USER CODE BEGIN FSMC_Init 0 */
+
+  /* USER CODE END FSMC_Init 0 */
+
+  FSMC_NORSRAM_TimingTypeDef Timing = {0};
+
+  /* USER CODE BEGIN FSMC_Init 1 */
+
+  /* USER CODE END FSMC_Init 1 */
+
+  /** Perform the SRAM3 memory initialization sequence
+  */
+  hsram3.Instance = FSMC_NORSRAM_DEVICE;
+  hsram3.Extended = FSMC_NORSRAM_EXTENDED_DEVICE;
+  /* hsram3.Init */
+  hsram3.Init.NSBank = FSMC_NORSRAM_BANK3;
+  hsram3.Init.DataAddressMux = FSMC_DATA_ADDRESS_MUX_DISABLE;
+  hsram3.Init.MemoryType = FSMC_MEMORY_TYPE_SRAM;
+  hsram3.Init.MemoryDataWidth = FSMC_NORSRAM_MEM_BUS_WIDTH_16;
+  hsram3.Init.BurstAccessMode = FSMC_BURST_ACCESS_MODE_DISABLE;
+  hsram3.Init.WaitSignalPolarity = FSMC_WAIT_SIGNAL_POLARITY_LOW;
+  hsram3.Init.WrapMode = FSMC_WRAP_MODE_DISABLE;
+  hsram3.Init.WaitSignalActive = FSMC_WAIT_TIMING_BEFORE_WS;
+  hsram3.Init.WriteOperation = FSMC_WRITE_OPERATION_ENABLE;
+  hsram3.Init.WaitSignal = FSMC_WAIT_SIGNAL_DISABLE;
+  hsram3.Init.ExtendedMode = FSMC_EXTENDED_MODE_DISABLE;
+  hsram3.Init.AsynchronousWait = FSMC_ASYNCHRONOUS_WAIT_DISABLE;
+  hsram3.Init.WriteBurst = FSMC_WRITE_BURST_DISABLE;
+  hsram3.Init.PageSize = FSMC_PAGE_SIZE_NONE;
+  /* Timing */
+  Timing.AddressSetupTime = 0;
+  Timing.AddressHoldTime = 15;
+  Timing.DataSetupTime = 3;
+  Timing.BusTurnAroundDuration = 0;
+  Timing.CLKDivision = 16;
+  Timing.DataLatency = 17;
+  Timing.AccessMode = FSMC_ACCESS_MODE_A;
+  /* ExtTiming */
+
+  if (HAL_SRAM_Init(&hsram3, &Timing, NULL) != HAL_OK)
+  {
+    Error_Handler( );
+  }
+
+  /* USER CODE BEGIN FSMC_Init 2 */
+
+  /* USER CODE END FSMC_Init 2 */
 }
 
 /* USER CODE BEGIN 4 */
