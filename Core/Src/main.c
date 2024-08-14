@@ -18,6 +18,8 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "fatfs.h"
+#include "usb_host.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -36,7 +38,7 @@
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 static  uint32_t testsram[160000]  __attribute__((section(".sram")));
-static int index=0;
+
 
 #ifdef __GNUC__
 #define PUTCHAR_PROTOTYPE int __io_putchar(int ch)
@@ -49,6 +51,12 @@ PUTCHAR_PROTOTYPE {
 	UART4->DR = (uint8_t) ch;
 	return ch;
 }
+
+extern ApplicationTypeDef Appli_state;
+extern USBH_HandleTypeDef hUsbHostFS;
+extern char USBHPath[4];
+FATFS otgupan;
+FIL myFile;
 
 uint32_t testsram2[16000]={0};
 /* USER CODE END PD */
@@ -97,12 +105,163 @@ static void MX_DMA_Init(void);
 static void MX_DCMI_Init(void);
 static void MX_UART4_Init(void);
 static void MX_FSMC_Init(void);
+void MX_USB_HOST_Process(void);
+
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+
+#pragma pack(2)
+
+typedef struct tagBITMAPFILEHEADER3{
+	WORD bfType;//位图文件的类型，在Windows中，此字段的值�?�为‘BM�?????(1-2字节�?????
+	DWORD bfSize;//位图文件的大小，以字节为单位�?????3-6字节，低位在前）
+	WORD bfReserved1;//位图文件保留字，必须�?????0(7-8字节�?????
+	WORD bfReserved2;//位图文件保留字，必须�?????0(9-10字节�?????
+	DWORD bfOffBits;//位图数据的起始位置，以相对于位图�?????11-14字节，低位在前）
+	//文件头的偏移量表示，以字节为单位
+} BitMapFileHeader;	//BITMAPFILEHEADER;
+#pragma pack()
+typedef struct tagBITMAPINFOHEADER3{
+	DWORD biSize;//本结构所占用字节数（15-18字节�?????
+	LONG biWidth;//位图的宽度，以像素为单位�?????19-22字节�?????
+	LONG biHeight;//位图的高度，以像素为单位�?????23-26字节�?????
+	WORD biPlanes;//目标设备的级别，必须�?????1(27-28字节�?????
+	WORD biBitCount;//每个像素�?????�?????的位数，必须�?????1（双色），（29-30字节�?????
+	//4(16色）�?????8(256色）16(高彩�?????)�?????24（真彩色）之�?????
+	DWORD biCompression;//位图压缩类型，必须是0（不压缩），�?????31-34字节�?????
+	//1(BI_RLE8压缩类型）或2(BI_RLE4压缩类型）之�?????
+	DWORD biSizeImage;//位图的大�?????(其中包含了为了补齐行数是4的�?�数而添加的空字�?????)，以字节为单位（35-38字节�?????
+	LONG biXPelsPerMeter;//位图水平分辨率，像素数（39-42字节�?????
+	LONG biYPelsPerMeter;//位图垂直分辨率，像素数（43-46字节)
+	DWORD biClrUsed;//位图实际使用的颜色表中的颜色数（47-50字节�?????
+	DWORD biClrImportant;//位图显示过程中重要的颜色数（51-54字节�?????
+} BitMapInfoHeader;	//BITMAPINFOHEADER;
+typedef struct tagRGBQUAD2{
+	BYTE rgbBlue;//蓝色的亮度（值范围为0-255)
+	BYTE rgbGreen;//绿色的亮度（值范围为0-255)
+	BYTE rgbRed;//红色的亮度（值范围为0-255)
+	BYTE rgbReserved;//保留，必须为0
+} RgbQuad2;	//RGBQUAD;
+
+int Rgb565ConvertBmp(uint8_t* buf,int width,int height,FIL * fp)
+{
+
+	BitMapFileHeader bmfHdr; //定义文件�?????
+	BitMapInfoHeader bmiHdr; //定义信息�?????
+	RgbQuad2 bmiClr[3]; //定义调色�?????
+
+	bmiHdr.biSize = sizeof(BitMapInfoHeader);
+	bmiHdr.biWidth = width;//指定图像的宽度，单位是像�?????
+	bmiHdr.biHeight = height;//指定图像的高度，单位是像�?????
+	bmiHdr.biPlanes = 1;//目标设备的级别，必须�?????1
+	bmiHdr.biBitCount = 16;//表示用到颜色时用到的位数 16位表示高彩色�?????
+	bmiHdr.biCompression = 3L;//BI_RGB仅有RGB555格式
+	bmiHdr.biSizeImage = (width * height * 2);//指定实际位图�?????占字节数
+	bmiHdr.biXPelsPerMeter = 0;//水平分辨率，单位长度内的像素�?????
+	bmiHdr.biYPelsPerMeter = 0;//垂直分辨率，单位长度内的像素�?????
+	bmiHdr.biClrUsed = 0;//位图实际使用的彩色表中的颜色索引数（设为0的话，则说明使用�?????有调色板项）
+	bmiHdr.biClrImportant = 0;//说明对图象显示有重要影响的颜色索引的数目�?????0表示�?????有颜色都重要
+
+	//RGB565格式掩码
+	bmiClr[0].rgbBlue = 0;
+	bmiClr[0].rgbGreen = 0xF8;
+	bmiClr[0].rgbRed = 0;
+	bmiClr[0].rgbReserved = 0;
+
+	bmiClr[1].rgbBlue = 0xE0;
+	bmiClr[1].rgbGreen = 0x07;
+	bmiClr[1].rgbRed = 0;
+	bmiClr[1].rgbReserved = 0;
+
+	bmiClr[2].rgbBlue = 0x1F;
+	bmiClr[2].rgbGreen = 0;
+	bmiClr[2].rgbRed = 0;
+	bmiClr[2].rgbReserved = 0;
+
+
+	bmfHdr.bfType = (WORD)0x4D42;//文件类型�?????0x4D42也就是字�?????'BM'
+	bmfHdr.bfSize = (DWORD)(sizeof(BitMapFileHeader) + sizeof(BitMapInfoHeader) + sizeof(RgbQuad2) * 3 + bmiHdr.biSizeImage);//文件大小
+	bmfHdr.bfReserved1 = 0;//保留，必须为0
+	bmfHdr.bfReserved2 = 0;//保留，必须为0
+	bmfHdr.bfOffBits = (DWORD)(sizeof(BitMapFileHeader) + sizeof(BitMapInfoHeader)+ sizeof(RgbQuad2) * 3);//实际图像数据偏移�?????
+	uint32_t byteswritten;
+
+
+
+	f_write(fp,&bmfHdr,  sizeof(BitMapFileHeader),(void *)&byteswritten);
+	f_write(fp,&bmiHdr, sizeof(BitMapInfoHeader),(void *)&byteswritten);
+	f_write(fp,&bmiClr, 3*sizeof(RgbQuad2),(void *)&byteswritten);
+	for(int i=0; i<height; i++){
+		f_write(fp,buf+(width*(height-i-1)*2), 2*width,(void *)&byteswritten);
+	}
+
+    f_close( fp );
+
+	 return 0;
+}
+
+static FRESULT ETX_MSC_ProcessUsbDevice(char * filename,uint8_t * data)
+{
+  FATFS     UsbDiskFatFs;                                 /* File system object for USB disk logical drive */
+  char      UsbDiskPath[4] = {0};                         /* USB Host logical drive path */
+  FIL       file;                                         /* File object */
+  FRESULT   res;                                          /* FatFs function common result code */
+  DWORD     fre_clust;                                    /* Freee Cluster */
+
+  do
+  {
+    /* Register the file system object to the FatFs module */
+    res = f_mount( &UsbDiskFatFs, (TCHAR const*)UsbDiskPath, 0 );
+    if( res != FR_OK )
+    {
+      /* FatFs Init Error */
+      break;
+    }
+
+    /* Check the Free Space */
+    FATFS *fatFs = &UsbDiskFatFs;
+    f_getfree("", &fre_clust, &fatFs);
+
+
+    /* Create a new text file with write access */
+    res = f_open( &file, filename, ( FA_CREATE_ALWAYS | FA_WRITE ) );
+    if( res != FR_OK )
+    {
+      /* File Open Error */
+      break;
+    }
+
+    /* Write the data to the text file */
+    Rgb565ConvertBmp(data,640,480,&file);
+
+
+
+
+    /* Close the file */
+    f_close(&file);
+
+    if(res != FR_OK)
+    {
+      /* File Read Error */
+      break;
+    }
+
+    /* Print the data */
+
+  } while ( 0 );
+
+  /* Unmount the device */
+  f_mount(NULL, UsbDiskPath, 0);
+
+  /* Unlink the USB disk driver */
+  FATFS_UnLinkDriver(UsbDiskPath);
+
+  return res;
+}
 
 /* USER CODE END 0 */
 
@@ -138,9 +297,14 @@ int main(void)
   MX_DCMI_Init();
   MX_UART4_Init();
   MX_FSMC_Init();
+  MX_FATFS_Init();
+  MX_USB_HOST_Init();
   /* USER CODE BEGIN 2 */
-    PY_OV2640_RGB565_CONFIG();
-	char *sa="helloworldiamtheawesomeman";
+  PY_OV2640_RGB565_CONFIG();
+for(int ts=0;ts<160000;ts++)testsram[ts]=ts;
+while(APPLICATION_READY!=Appli_state)
+MX_USB_HOST_Process();
+char filename[6];
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -149,9 +313,9 @@ int main(void)
 
 				HAL_Delay(1);
 				DCMI_DMA_MemInc_En();
-				dcmi_dma_status = HAL_DCMI_Init(&hdcmi);
-	    	 for (uint8_t i=0; i<1;i++)
+	    	 for (uint8_t i=0; i<5;i++)
 	    	  {
+
 		 		     HAL_DCMI_DisableCrop (&hdcmi);
 		 	    	 DCMI_RN = HEIGHT;
 		 	    	 DCMI_CN = 1280;
@@ -162,64 +326,20 @@ int main(void)
 		 	    	 HAL_Delay(1);
 		 	    	 HAL_DCMI_EnableCrop (&hdcmi);
 		 	    	 HAL_Delay(1);
-		 	    	 dcmi_dma_status = HAL_DCMI_Start_DMA(&hdcmi, DCMI_MODE_SNAPSHOT, (uint8_t*)(testsram+offset),DCMI_CN*DCMI_RN/4);
-	                 while(HAL_DMA_GetState(&hdcmi)==HAL_DMA_STATE_BUSY) ;
+		 	    	 dcmi_dma_status = HAL_DCMI_Start_DMA(&hdcmi, DCMI_MODE_SNAPSHOT, (testsram+offset),DCMI_CN*DCMI_RN/4);
+	                 while(HAL_DMA_GetState(&hdcmi)==HAL_DMA_STATE_BUSY){} ;
 	 	 	    	 HAL_DCMI_Stop(&hdcmi);
+	    	 	 	   HAL_Delay(1000);
 
-//	 	 	       tx_busy = 1;
-//	 	 	   	    	 	 	  HAL_UART_Transmit_DMA(&huart4, (uint8_t *)(testsram+offset), 61440);
-//	 	 	   	    	 	 	    	while(tx_busy!=0) ;
-	 	 	   	    	 	 	    //	break;
+		                 sprintf(filename,"%d.bmp",i);
 
-
-
+	    	 	 	 ETX_MSC_ProcessUsbDevice(filename,(uint8_t*)testsram);
+	    	 	 	HAL_GPIO_TogglePin(GPIOG,GPIO_PIN_9);
 	    	 }
-	 	 	    	 index=0;
-	       	 for(index=0;index<10;index++ ){
-	    		 	 	    tx_busy = 1;
-	    	 	 	    	int offset=1280*HEIGHT*index;
-	    	 	 	    	HAL_UART_Transmit_DMA(&huart4, (uint8_t *)(testsram+offset), 61440);
-	    	 	 	    	while(tx_busy!=0) ;
-
-	    	 	 	    	 }
 
 
 
 
-
-
-
-
-
-
-
-//	 	 	    	 for (uint8_t i=0; i<10;i++)
-//	 	 	    		    	  {
-//	 	 	    			 		     HAL_DCMI_DisableCrop (&hdcmi);
-//
-//	 	 	    			 	    	 DCMI_RN = 48;
-//	 	 	    			 	    	 DCMI_CN = 1280;
-//
-//	 	 	    			 	    	 DCMI_RS = 48*i;
-//
-//	 	 	    			 	    	 DCMI_CS = 0;
-//
-//	 	 	    			 	    	 HAL_DCMI_ConfigCrop (&hdcmi, DCMI_CS, DCMI_RS, DCMI_CN, DCMI_RN);
-//	 	 	    			 	    	 HAL_Delay(1);
-//	 	 	    			 	    	 HAL_DCMI_EnableCrop (&hdcmi);
-//	 	 	    			 	    	 HAL_Delay(1);
-//
-//	 	 	    			 	    	 dcmi_dma_status = HAL_DCMI_Start_DMA(&hdcmi, DCMI_MODE_SNAPSHOT, (uint8_t*)testsram,DCMI_CN*DCMI_RN/4);
-//	 	 	    		                 while(HAL_DMA_GetState(&hdcmi)==HAL_DMA_STATE_BUSY) ;
-//	 	 	    		 	 	    	 HAL_DCMI_Stop(&hdcmi);
-//	 	 	    		 	 	    	 tx_busy = 1;
-//	 	 	    		 	 	    	HAL_UART_Transmit_DMA(&huart4, (uint8_t *)testsram, 61440);
-//	 	 	    		 	 	    	while(tx_busy!=0) ;
-//
-//
-//
-//
-//	 	 	    		    	 }
 
 
 	    	 HAL_Delay(5000000);
@@ -255,6 +375,7 @@ int main(void)
 
 
     /* USER CODE END WHILE */
+    MX_USB_HOST_Process();
 
     /* USER CODE BEGIN 3 */
 	}
@@ -378,12 +499,12 @@ static void MX_DMA_Init(void)
 {
 
   /* DMA controller clock enable */
-  __HAL_RCC_DMA2_CLK_ENABLE();
   __HAL_RCC_DMA1_CLK_ENABLE();
+  __HAL_RCC_DMA2_CLK_ENABLE();
 
   /* DMA interrupt init */
   /* DMA1_Stream4_IRQn interrupt configuration */
-  HAL_NVIC_SetPriority(DMA1_Stream4_IRQn, 1, 0);
+  HAL_NVIC_SetPriority(DMA1_Stream4_IRQn, 0, 0);
   HAL_NVIC_EnableIRQ(DMA1_Stream4_IRQn);
   /* DMA2_Stream1_IRQn interrupt configuration */
   HAL_NVIC_SetPriority(DMA2_Stream1_IRQn, 0, 0);
@@ -411,6 +532,9 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_9, GPIO_PIN_SET);
+
+  /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOD, GPIO_PIN_3, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
@@ -428,6 +552,13 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
   GPIO_InitStruct.Alternate = GPIO_AF0_MCO;
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : PA9 */
+  GPIO_InitStruct.Pin = GPIO_PIN_9;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
   /*Configure GPIO pin : PD3 */
@@ -496,7 +627,7 @@ static void MX_FSMC_Init(void)
   /* Timing */
   Timing.AddressSetupTime = 0;
   Timing.AddressHoldTime = 15;
-  Timing.DataSetupTime = 3;
+  Timing.DataSetupTime = 4;
   Timing.BusTurnAroundDuration = 0;
   Timing.CLKDivision = 16;
   Timing.DataLatency = 17;

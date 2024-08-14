@@ -115,28 +115,28 @@ void HAL_DCMI_MspInit(DCMI_HandleTypeDef* hdcmi)
     */
     GPIO_InitStruct.Pin = GPIO_PIN_4|GPIO_PIN_5|GPIO_PIN_6;
     GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-    GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+    GPIO_InitStruct.Pull = GPIO_NOPULL;
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
     GPIO_InitStruct.Alternate = GPIO_AF13_DCMI;
     HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
 
     GPIO_InitStruct.Pin = GPIO_PIN_4|GPIO_PIN_6;
     GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-    GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+    GPIO_InitStruct.Pull = GPIO_NOPULL;
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
     GPIO_InitStruct.Alternate = GPIO_AF13_DCMI;
     HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
     GPIO_InitStruct.Pin = GPIO_PIN_6|GPIO_PIN_7|GPIO_PIN_8|GPIO_PIN_9;
     GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-    GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+    GPIO_InitStruct.Pull = GPIO_NOPULL;
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
     GPIO_InitStruct.Alternate = GPIO_AF13_DCMI;
     HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
     GPIO_InitStruct.Pin = GPIO_PIN_6|GPIO_PIN_7;
     GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-    GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+    GPIO_InitStruct.Pull = GPIO_NOPULL;
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
     GPIO_InitStruct.Alternate = GPIO_AF13_DCMI;
     HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
@@ -151,7 +151,7 @@ void HAL_DCMI_MspInit(DCMI_HandleTypeDef* hdcmi)
     hdma_dcmi.Init.PeriphDataAlignment = DMA_PDATAALIGN_WORD;
     hdma_dcmi.Init.MemDataAlignment = DMA_MDATAALIGN_WORD;
     hdma_dcmi.Init.Mode = DMA_CIRCULAR;
-    hdma_dcmi.Init.Priority = DMA_PRIORITY_VERY_HIGH;
+    hdma_dcmi.Init.Priority = DMA_PRIORITY_LOW;
     hdma_dcmi.Init.FIFOMode = DMA_FIFOMODE_ENABLE;
     hdma_dcmi.Init.FIFOThreshold = DMA_FIFO_THRESHOLD_FULL;
     hdma_dcmi.Init.MemBurst = DMA_MBURST_SINGLE;
@@ -164,7 +164,7 @@ void HAL_DCMI_MspInit(DCMI_HandleTypeDef* hdcmi)
     __HAL_LINKDMA(hdcmi,DMA_Handle,hdma_dcmi);
 
     /* DCMI interrupt Init */
-    HAL_NVIC_SetPriority(DCMI_IRQn, 2, 0);
+    HAL_NVIC_SetPriority(DCMI_IRQn, 0, 0);
     HAL_NVIC_EnableIRQ(DCMI_IRQn);
   /* USER CODE BEGIN DCMI_MspInit 1 */
 
