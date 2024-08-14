@@ -58,7 +58,6 @@ extern char USBHPath[4];
 FATFS otgupan;
 FIL myFile;
 
-uint32_t testsram2[16000]={0};
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -117,28 +116,28 @@ void MX_USB_HOST_Process(void);
 #pragma pack(2)
 
 typedef struct tagBITMAPFILEHEADER3{
-	WORD bfType;//位图文件的类型，在Windows中，此字段的值�?�为‘BM�?????(1-2字节�?????
-	DWORD bfSize;//位图文件的大小，以字节为单位�?????3-6字节，低位在前）
-	WORD bfReserved1;//位图文件保留字，必须�?????0(7-8字节�?????
-	WORD bfReserved2;//位图文件保留字，必须�?????0(9-10字节�?????
-	DWORD bfOffBits;//位图数据的起始位置，以相对于位图�?????11-14字节，低位在前）
+	WORD bfType;//位图文件的类型，在Windows中，此字段的值�?�为‘BM�?????(1-2字节�?????
+	DWORD bfSize;//位图文件的大小，以字节为单位�?????3-6字节，低位在前）
+	WORD bfReserved1;//位图文件保留字，必须�?????0(7-8字节�?????
+	WORD bfReserved2;//位图文件保留字，必须�?????0(9-10字节�?????
+	DWORD bfOffBits;//位图数据的起始位置，以相对于位图�?????11-14字节，低位在前）
 	//文件头的偏移量表示，以字节为单位
 } BitMapFileHeader;	//BITMAPFILEHEADER;
 #pragma pack()
 typedef struct tagBITMAPINFOHEADER3{
-	DWORD biSize;//本结构所占用字节数（15-18字节�?????
-	LONG biWidth;//位图的宽度，以像素为单位�?????19-22字节�?????
-	LONG biHeight;//位图的高度，以像素为单位�?????23-26字节�?????
-	WORD biPlanes;//目标设备的级别，必须�?????1(27-28字节�?????
-	WORD biBitCount;//每个像素�?????�?????的位数，必须�?????1（双色），（29-30字节�?????
-	//4(16色）�?????8(256色）16(高彩�?????)�?????24（真彩色）之�?????
-	DWORD biCompression;//位图压缩类型，必须是0（不压缩），�?????31-34字节�?????
-	//1(BI_RLE8压缩类型）或2(BI_RLE4压缩类型）之�?????
-	DWORD biSizeImage;//位图的大�?????(其中包含了为了补齐行数是4的�?�数而添加的空字�?????)，以字节为单位（35-38字节�?????
-	LONG biXPelsPerMeter;//位图水平分辨率，像素数（39-42字节�?????
+	DWORD biSize;//本结构所占用字节数（15-18字节�?????
+	LONG biWidth;//位图的宽度，以像素为单位�?????19-22字节�?????
+	LONG biHeight;//位图的高度，以像素为单位�?????23-26字节�?????
+	WORD biPlanes;//目标设备的级别，必须�?????1(27-28字节�?????
+	WORD biBitCount;//每个像素�?????�?????的位数，必须�?????1（双色），（29-30字节�?????
+	//4(16色）�?????8(256色）16(高彩�?????)�?????24（真彩色）之�?????
+	DWORD biCompression;//位图压缩类型，必须是0（不压缩），�?????31-34字节�?????
+	//1(BI_RLE8压缩类型）或2(BI_RLE4压缩类型）之�?????
+	DWORD biSizeImage;//位图的大�?????(其中包含了为了补齐行数是4的�?�数而添加的空字�?????)，以字节为单位（35-38字节�?????
+	LONG biXPelsPerMeter;//位图水平分辨率，像素数（39-42字节�?????
 	LONG biYPelsPerMeter;//位图垂直分辨率，像素数（43-46字节)
-	DWORD biClrUsed;//位图实际使用的颜色表中的颜色数（47-50字节�?????
-	DWORD biClrImportant;//位图显示过程中重要的颜色数（51-54字节�?????
+	DWORD biClrUsed;//位图实际使用的颜色表中的颜色数（47-50字节�?????
+	DWORD biClrImportant;//位图显示过程中重要的颜色数（51-54字节�?????
 } BitMapInfoHeader;	//BITMAPINFOHEADER;
 typedef struct tagRGBQUAD2{
 	BYTE rgbBlue;//蓝色的亮度（值范围为0-255)
@@ -150,21 +149,21 @@ typedef struct tagRGBQUAD2{
 int Rgb565ConvertBmp(uint8_t* buf,int width,int height,FIL * fp)
 {
 
-	BitMapFileHeader bmfHdr; //定义文件�?????
-	BitMapInfoHeader bmiHdr; //定义信息�?????
-	RgbQuad2 bmiClr[3]; //定义调色�?????
+	BitMapFileHeader bmfHdr; //定义文件�?????
+	BitMapInfoHeader bmiHdr; //定义信息�?????
+	RgbQuad2 bmiClr[3]; //定义调色�?????
 
 	bmiHdr.biSize = sizeof(BitMapInfoHeader);
-	bmiHdr.biWidth = width;//指定图像的宽度，单位是像�?????
-	bmiHdr.biHeight = height;//指定图像的高度，单位是像�?????
-	bmiHdr.biPlanes = 1;//目标设备的级别，必须�?????1
-	bmiHdr.biBitCount = 16;//表示用到颜色时用到的位数 16位表示高彩色�?????
+	bmiHdr.biWidth = width;//指定图像的宽度，单位是像�?????
+	bmiHdr.biHeight = height;//指定图像的高度，单位是像�?????
+	bmiHdr.biPlanes = 1;//目标设备的级别，必须�?????1
+	bmiHdr.biBitCount = 16;//表示用到颜色时用到的位数 16位表示高彩色�?????
 	bmiHdr.biCompression = 3L;//BI_RGB仅有RGB555格式
-	bmiHdr.biSizeImage = (width * height * 2);//指定实际位图�?????占字节数
-	bmiHdr.biXPelsPerMeter = 0;//水平分辨率，单位长度内的像素�?????
-	bmiHdr.biYPelsPerMeter = 0;//垂直分辨率，单位长度内的像素�?????
-	bmiHdr.biClrUsed = 0;//位图实际使用的彩色表中的颜色索引数（设为0的话，则说明使用�?????有调色板项）
-	bmiHdr.biClrImportant = 0;//说明对图象显示有重要影响的颜色索引的数目�?????0表示�?????有颜色都重要
+	bmiHdr.biSizeImage = (width * height * 2);//指定实际位图�?????占字节数
+	bmiHdr.biXPelsPerMeter = 0;//水平分辨率，单位长度内的像素�?????
+	bmiHdr.biYPelsPerMeter = 0;//垂直分辨率，单位长度内的像素�?????
+	bmiHdr.biClrUsed = 0;//位图实际使用的彩色表中的颜色索引数（设为0的话，则说明使用�?????有调色板项）
+	bmiHdr.biClrImportant = 0;//说明对图象显示有重要影响的颜色索引的数目�?????0表示�?????有颜色都重要
 
 	//RGB565格式掩码
 	bmiClr[0].rgbBlue = 0;
@@ -183,11 +182,11 @@ int Rgb565ConvertBmp(uint8_t* buf,int width,int height,FIL * fp)
 	bmiClr[2].rgbReserved = 0;
 
 
-	bmfHdr.bfType = (WORD)0x4D42;//文件类型�?????0x4D42也就是字�?????'BM'
+	bmfHdr.bfType = (WORD)0x4D42;//文件类型�?????0x4D42也就是字�?????'BM'
 	bmfHdr.bfSize = (DWORD)(sizeof(BitMapFileHeader) + sizeof(BitMapInfoHeader) + sizeof(RgbQuad2) * 3 + bmiHdr.biSizeImage);//文件大小
 	bmfHdr.bfReserved1 = 0;//保留，必须为0
 	bmfHdr.bfReserved2 = 0;//保留，必须为0
-	bmfHdr.bfOffBits = (DWORD)(sizeof(BitMapFileHeader) + sizeof(BitMapInfoHeader)+ sizeof(RgbQuad2) * 3);//实际图像数据偏移�?????
+	bmfHdr.bfOffBits = (DWORD)(sizeof(BitMapFileHeader) + sizeof(BitMapInfoHeader)+ sizeof(RgbQuad2) * 3);//实际图像数据偏移�?????
 	uint32_t byteswritten;
 
 
@@ -301,7 +300,6 @@ int main(void)
   MX_USB_HOST_Init();
   /* USER CODE BEGIN 2 */
   PY_OV2640_RGB565_CONFIG();
-for(int ts=0;ts<160000;ts++)testsram[ts]=ts;
 while(APPLICATION_READY!=Appli_state)
 MX_USB_HOST_Process();
 char filename[6];
@@ -326,7 +324,7 @@ char filename[6];
 		 	    	 HAL_Delay(1);
 		 	    	 HAL_DCMI_EnableCrop (&hdcmi);
 		 	    	 HAL_Delay(1);
-		 	    	 dcmi_dma_status = HAL_DCMI_Start_DMA(&hdcmi, DCMI_MODE_SNAPSHOT, (testsram+offset),DCMI_CN*DCMI_RN/4);
+		 	    	 dcmi_dma_status = HAL_DCMI_Start_DMA(&hdcmi, DCMI_MODE_SNAPSHOT, testsram,DCMI_CN*DCMI_RN/4);
 	                 while(HAL_DMA_GetState(&hdcmi)==HAL_DMA_STATE_BUSY){} ;
 	 	 	    	 HAL_DCMI_Stop(&hdcmi);
 	    	 	 	   HAL_Delay(1000);
@@ -627,7 +625,7 @@ static void MX_FSMC_Init(void)
   /* Timing */
   Timing.AddressSetupTime = 0;
   Timing.AddressHoldTime = 15;
-  Timing.DataSetupTime = 4;
+  Timing.DataSetupTime = 5;
   Timing.BusTurnAroundDuration = 0;
   Timing.CLKDivision = 16;
   Timing.DataLatency = 17;
