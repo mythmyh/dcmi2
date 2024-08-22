@@ -166,7 +166,7 @@ void HAL_DCMI_MspInit(DCMI_HandleTypeDef* hdcmi)
     __HAL_LINKDMA(hdcmi,DMA_Handle,hdma_dcmi);
 
     /* DCMI interrupt Init */
-    HAL_NVIC_SetPriority(DCMI_IRQn, 5, 0);
+    HAL_NVIC_SetPriority(DCMI_IRQn, 6, 0);
     HAL_NVIC_EnableIRQ(DCMI_IRQn);
   /* USER CODE BEGIN DCMI_MspInit 1 */
 
@@ -272,7 +272,10 @@ void HAL_UART_MspInit(UART_HandleTypeDef* huart)
     hdma_uart4_tx.Init.MemDataAlignment = DMA_MDATAALIGN_BYTE;
     hdma_uart4_tx.Init.Mode = DMA_NORMAL;
     hdma_uart4_tx.Init.Priority = DMA_PRIORITY_LOW;
-    hdma_uart4_tx.Init.FIFOMode = DMA_FIFOMODE_DISABLE;
+    hdma_uart4_tx.Init.FIFOMode = DMA_FIFOMODE_ENABLE;
+    hdma_uart4_tx.Init.FIFOThreshold = DMA_FIFO_THRESHOLD_FULL;
+    hdma_uart4_tx.Init.MemBurst = DMA_MBURST_SINGLE;
+    hdma_uart4_tx.Init.PeriphBurst = DMA_PBURST_SINGLE;
     if (HAL_DMA_Init(&hdma_uart4_tx) != HAL_OK)
     {
       Error_Handler();
