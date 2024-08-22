@@ -18,12 +18,16 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "cmsis_os.h"
 #include "fatfs.h"
 #include "usb_host.h"
+
+#include "lwip.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "ov2640.h"
+#include "tcpServerRAW.h"
 #define HEIGHT 480
 #include "stdio.h"
 /* USER CODE END Includes */
@@ -55,6 +59,7 @@ PUTCHAR_PROTOTYPE {
 extern ApplicationTypeDef Appli_state;
 extern USBH_HandleTypeDef hUsbHostFS;
 extern char USBHPath[4];
+extern struct netif gnetif;
 FATFS otgupan;
 FIL myFile;
 
@@ -93,6 +98,8 @@ DMA_HandleTypeDef hdma_uart4_tx;
 
 SRAM_HandleTypeDef hsram3;
 
+osThreadId defaultTaskHandle;
+osThreadId myTask02Handle;
 /* USER CODE BEGIN PV */
 
 /* USER CODE END PV */
@@ -104,7 +111,10 @@ static void MX_DMA_Init(void);
 static void MX_DCMI_Init(void);
 static void MX_UART4_Init(void);
 static void MX_FSMC_Init(void);
-void MX_USB_HOST_Process(void);
+void MX_USB_HOST_Process();
+
+void StartDefaultTask(void const * argument);
+void StartTask02(void const * argument);
 
 /* USER CODE BEGIN PFP */
 
@@ -114,30 +124,31 @@ void MX_USB_HOST_Process(void);
 /* USER CODE BEGIN 0 */
 
 #pragma pack(2)
+char filename[6];
 
 typedef struct tagBITMAPFILEHEADER3{
-	WORD bfType;//位图文件的类型，在Windows中，此字段的值�?�为‘BM�??????(1-2字节�??????
-	DWORD bfSize;//位图文件的大小，以字节为单位�??????3-6字节，低位在前）
-	WORD bfReserved1;//位图文件保留字，必须�??????0(7-8字节�??????
-	WORD bfReserved2;//位图文件保留字，必须�??????0(9-10字节�??????
-	DWORD bfOffBits;//位图数据的起始位置，以相对于位图�??????11-14字节，低位在前）
+	WORD bfType;//位图文件的类型，在Windows中，此字段的值�?�为‘BM�????????????????(1-2字节�????????????????
+	DWORD bfSize;//位图文件的大小，以字节为单位�????????????????3-6字节，低位在前）
+	WORD bfReserved1;//位图文件保留字，必须�????????????????0(7-8字节�????????????????
+	WORD bfReserved2;//位图文件保留字，必须�????????????????0(9-10字节�????????????????
+	DWORD bfOffBits;//位图数据的起始位置，以相对于位图�????????????????11-14字节，低位在前）
 	//文件头的偏移量表示，以字节为单位
 } BitMapFileHeader;	//BITMAPFILEHEADER;
 #pragma pack()
 typedef struct tagBITMAPINFOHEADER3{
-	DWORD biSize;//本结构所占用字节数（15-18字节�??????
-	LONG biWidth;//位图的宽度，以像素为单位�??????19-22字节�??????
-	LONG biHeight;//位图的高度，以像素为单位�??????23-26字节�??????
-	WORD biPlanes;//目标设备的级别，必须�??????1(27-28字节�??????
-	WORD biBitCount;//每个像素�??????�??????的位数，必须�??????1（双色），（29-30字节�??????
-	//4(16色）�??????8(256色）16(高彩�??????)�??????24（真彩色）之�??????
-	DWORD biCompression;//位图压缩类型，必须是0（不压缩），�??????31-34字节�??????
-	//1(BI_RLE8压缩类型）或2(BI_RLE4压缩类型）之�??????
-	DWORD biSizeImage;//位图的大�??????(其中包含了为了补齐行数是4的�?�数而添加的空字�??????)，以字节为单位（35-38字节�??????
-	LONG biXPelsPerMeter;//位图水平分辨率，像素数（39-42字节�??????
+	DWORD biSize;//本结构所占用字节数（15-18字节�????????????????
+	LONG biWidth;//位图的宽度，以像素为单位�????????????????19-22字节�????????????????
+	LONG biHeight;//位图的高度，以像素为单位�????????????????23-26字节�????????????????
+	WORD biPlanes;//目标设备的级别，必须�????????????????1(27-28字节�????????????????
+	WORD biBitCount;//每个像素�????????????????�????????????????的位数，必须�????????????????1（双色），（29-30字节�????????????????
+	//4(16色）�????????????????8(256色）16(高彩�????????????????)�????????????????24（真彩色）之�????????????????
+	DWORD biCompression;//位图压缩类型，必须是0（不压缩），�????????????????31-34字节�????????????????
+	//1(BI_RLE8压缩类型）或2(BI_RLE4压缩类型）之�????????????????
+	DWORD biSizeImage;//位图的大�????????????????(其中包含了为了补齐行数是4的�?�数而添加的空字�????????????????)，以字节为单位（35-38字节�????????????????
+	LONG biXPelsPerMeter;//位图水平分辨率，像素数（39-42字节�????????????????
 	LONG biYPelsPerMeter;//位图垂直分辨率，像素数（43-46字节)
-	DWORD biClrUsed;//位图实际使用的颜色表中的颜色数（47-50字节�??????
-	DWORD biClrImportant;//位图显示过程中重要的颜色数（51-54字节�??????
+	DWORD biClrUsed;//位图实际使用的颜色表中的颜色数（47-50字节�????????????????
+	DWORD biClrImportant;//位图显示过程中重要的颜色数（51-54字节�????????????????
 } BitMapInfoHeader;	//BITMAPINFOHEADER;
 typedef struct tagRGBQUAD2{
 	BYTE rgbBlue;//蓝色的亮度（值范围为0-255)
@@ -149,21 +160,21 @@ typedef struct tagRGBQUAD2{
 int Rgb565ConvertBmp(uint8_t* buf,int width,int height,FIL * fp)
 {
 
-	BitMapFileHeader bmfHdr; //定义文件�??????
-	BitMapInfoHeader bmiHdr; //定义信息�??????
-	RgbQuad2 bmiClr[3]; //定义调色�??????
+	BitMapFileHeader bmfHdr; //定义文件�????????????????
+	BitMapInfoHeader bmiHdr; //定义信息�????????????????
+	RgbQuad2 bmiClr[3]; //定义调色�????????????????
 
 	bmiHdr.biSize = sizeof(BitMapInfoHeader);
-	bmiHdr.biWidth = width;//指定图像的宽度，单位是像�??????
-	bmiHdr.biHeight = height;//指定图像的高度，单位是像�??????
-	bmiHdr.biPlanes = 1;//目标设备的级别，必须�??????1
-	bmiHdr.biBitCount = 16;//表示用到颜色时用到的位数 16位表示高彩色�??????
+	bmiHdr.biWidth = width;//指定图像的宽度，单位是像�????????????????
+	bmiHdr.biHeight = height;//指定图像的高度，单位是像�????????????????
+	bmiHdr.biPlanes = 1;//目标设备的级别，必须�????????????????1
+	bmiHdr.biBitCount = 16;//表示用到颜色时用到的位数 16位表示高彩色�????????????????
 	bmiHdr.biCompression = 3L;//BI_RGB仅有RGB555格式
-	bmiHdr.biSizeImage = (width * height * 2);//指定实际位图�??????占字节数
-	bmiHdr.biXPelsPerMeter = 0;//水平分辨率，单位长度内的像素�??????
-	bmiHdr.biYPelsPerMeter = 0;//垂直分辨率，单位长度内的像素�??????
-	bmiHdr.biClrUsed = 0;//位图实际使用的彩色表中的颜色索引数（设为0的话，则说明使用�??????有调色板项）
-	bmiHdr.biClrImportant = 0;//说明对图象显示有重要影响的颜色索引的数目�??????0表示�??????有颜色都重要
+	bmiHdr.biSizeImage = (width * height * 2);//指定实际位图�????????????????占字节数
+	bmiHdr.biXPelsPerMeter = 0;//水平分辨率，单位长度内的像素�????????????????
+	bmiHdr.biYPelsPerMeter = 0;//垂直分辨率，单位长度内的像素�????????????????
+	bmiHdr.biClrUsed = 0;//位图实际使用的彩色表中的颜色索引数（设为0的话，则说明使用�????????????????有调色板项）
+	bmiHdr.biClrImportant = 0;//说明对图象显示有重要影响的颜色索引的数目�????????????????0表示�????????????????有颜色都重要
 
 	//RGB565格式掩码
 	bmiClr[0].rgbBlue = 0;
@@ -182,11 +193,11 @@ int Rgb565ConvertBmp(uint8_t* buf,int width,int height,FIL * fp)
 	bmiClr[2].rgbReserved = 0;
 
 
-	bmfHdr.bfType = (WORD)0x4D42;//文件类型�??????0x4D42也就是字�??????'BM'
+	bmfHdr.bfType = (WORD)0x4D42;//文件类型�????????????????0x4D42也就是字�????????????????'BM'
 	bmfHdr.bfSize = (DWORD)(sizeof(BitMapFileHeader) + sizeof(BitMapInfoHeader) + sizeof(RgbQuad2) * 3 + bmiHdr.biSizeImage);//文件大小
 	bmfHdr.bfReserved1 = 0;//保留，必须为0
 	bmfHdr.bfReserved2 = 0;//保留，必须为0
-	bmfHdr.bfOffBits = (DWORD)(sizeof(BitMapFileHeader) + sizeof(BitMapInfoHeader)+ sizeof(RgbQuad2) * 3);//实际图像数据偏移�??????
+	bmfHdr.bfOffBits = (DWORD)(sizeof(BitMapFileHeader) + sizeof(BitMapInfoHeader)+ sizeof(RgbQuad2) * 3);//实际图像数据偏移�????????????????
 	uint32_t byteswritten;
 
 
@@ -298,81 +309,76 @@ int main(void)
   MX_FSMC_Init();
   MX_FATFS_Init();
   MX_USB_HOST_Init();
+
   /* USER CODE BEGIN 2 */
   PY_OV2640_RGB565_CONFIG();
-while(APPLICATION_READY!=Appli_state)
-MX_USB_HOST_Process();
-char filename[6];
+while(APPLICATION_READY!=Appli_state){};
+
   /* USER CODE END 2 */
 
+  /* USER CODE BEGIN RTOS_MUTEX */
+  /* add mutexes, ... */
+  /* USER CODE END RTOS_MUTEX */
+
+  /* USER CODE BEGIN RTOS_SEMAPHORES */
+  /* add semaphores, ... */
+  /* USER CODE END RTOS_SEMAPHORES */
+
+  /* USER CODE BEGIN RTOS_TIMERS */
+  /* start timers, add new ones, ... */
+  /* USER CODE END RTOS_TIMERS */
+
+  /* USER CODE BEGIN RTOS_QUEUES */
+  /* add queues, ... */
+  /* USER CODE END RTOS_QUEUES */
+
+  /* Create the thread(s) */
+  /* definition and creation of defaultTask */
+  osThreadDef(defaultTask, StartDefaultTask, osPriorityNormal, 0, 1024);
+  defaultTaskHandle = osThreadCreate(osThread(defaultTask), NULL);
+
+  /* definition and creation of myTask02 */
+  osThreadDef(myTask02, StartTask02, osPriorityAboveNormal, 0, 500);
+  myTask02Handle = osThreadCreate(osThread(myTask02), NULL);
+
+  /* USER CODE BEGIN RTOS_THREADS */
+  /* add threads, ... */
+  /* USER CODE END RTOS_THREADS */
+
+  /* Start scheduler */
+  osKernelStart();
+
+  /* We should never get here as control is now taken by the scheduler */
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
 	while (1) {
 
-				HAL_Delay(1);
-				DCMI_DMA_MemInc_En();
-	    	 for (uint8_t i=0; i<5;i++)
-	    	  {
-
-		 		     HAL_DCMI_DisableCrop (&hdcmi);
-		 	    	 DCMI_RN = HEIGHT;
-		 	    	 DCMI_CN = 1280;
-		 	    	 DCMI_RS =0;
-		 	    	 DCMI_CS = 0;
-		 	    	 HAL_DCMI_ConfigCrop (&hdcmi, DCMI_CS, DCMI_RS, DCMI_CN, DCMI_RN);
-		 	    	 HAL_Delay(1);
-		 	    	 HAL_DCMI_EnableCrop (&hdcmi);
-		 	    	 HAL_Delay(1);
-		 	    	 dcmi_dma_status = HAL_DCMI_Start_DMA(&hdcmi, DCMI_MODE_SNAPSHOT, (uint32_t)testsram,DCMI_CN*DCMI_RN/4);
-	                 while(HAL_DMA_GetState(&hdcmi)==HAL_DMA_STATE_BUSY){} ;
-	 	 	    	 HAL_DCMI_Stop(&hdcmi);
-
-		             sprintf(filename,"%d.bmp",i);
-
-	    	 	 	 ETX_MSC_ProcessUsbDevice(filename,(uint8_t*)testsram);
-	    	 	 	 //memset(testsram,0,160000);
-	    	 	 	HAL_GPIO_TogglePin(GPIOG,GPIO_PIN_9);
-	    	 }
-
-
-
-
-
-
-	    	 HAL_Delay(5000000);
-
-//		for(int i=0;i<15;i+=1){
+//				HAL_Delay(1);
+//				DCMI_DMA_MemInc_En();
+//	    	 for (uint8_t i=0; i<5;i++)
+//	    	  {
 //
-//			printf("read data %d=%lu,testsram  %p\n",i,testsram[i],&testsram[i]);
-//
-//
-//	    	 HAL_Delay(2000);
-//
-//		}
+//		 		     HAL_DCMI_DisableCrop (&hdcmi);
+//		 	    	 DCMI_RN = HEIGHT;
+//		 	    	 DCMI_CN = 1280;
+//		 	    	 DCMI_RS =0;
+//		 	    	 DCMI_CS = 0;
+//		 	    	 HAL_DCMI_ConfigCrop (&hdcmi, DCMI_CS, DCMI_RS, DCMI_CN, DCMI_RN);
+//		 	    	 HAL_Delay(1);
+//		 	    	 HAL_DCMI_EnableCrop (&hdcmi);
+//		 	    	 HAL_Delay(1);
+//		 	    	 dcmi_dma_status = HAL_DCMI_Start_DMA(&hdcmi, DCMI_MODE_SNAPSHOT, (uint32_t)testsram,DCMI_CN*DCMI_RN/4);
+//	                 while(HAL_DMA_GetState(&hdcmi)==HAL_DMA_STATE_BUSY){} ;
+//	 	 	    	 HAL_DCMI_Stop(&hdcmi);
+//		             sprintf(filename,"%d.bmp",i);
+//	    	 	 	 ETX_MSC_ProcessUsbDevice(filename,(uint8_t*)testsram);
+//	    	 	 	HAL_GPIO_TogglePin(GPIOG,GPIO_PIN_9);
+//	    	 }
+//	    	 HAL_Delay(5000000);
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-		//HAL_Delay(20000);
-
-
+		//MX_LWIP_Process();
     /* USER CODE END WHILE */
-    MX_USB_HOST_Process();
 
     /* USER CODE BEGIN 3 */
 	}
@@ -496,15 +502,15 @@ static void MX_DMA_Init(void)
 {
 
   /* DMA controller clock enable */
-  __HAL_RCC_DMA1_CLK_ENABLE();
   __HAL_RCC_DMA2_CLK_ENABLE();
+  __HAL_RCC_DMA1_CLK_ENABLE();
 
   /* DMA interrupt init */
   /* DMA1_Stream4_IRQn interrupt configuration */
-  HAL_NVIC_SetPriority(DMA1_Stream4_IRQn, 0, 0);
+  HAL_NVIC_SetPriority(DMA1_Stream4_IRQn, 5, 0);
   HAL_NVIC_EnableIRQ(DMA1_Stream4_IRQn);
   /* DMA2_Stream1_IRQn interrupt configuration */
-  HAL_NVIC_SetPriority(DMA2_Stream1_IRQn, 0, 0);
+  HAL_NVIC_SetPriority(DMA2_Stream1_IRQn, 5, 0);
   HAL_NVIC_EnableIRQ(DMA2_Stream1_IRQn);
 
 }
@@ -522,10 +528,10 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOE_CLK_ENABLE();
   __HAL_RCC_GPIOF_CLK_ENABLE();
   __HAL_RCC_GPIOH_CLK_ENABLE();
+  __HAL_RCC_GPIOC_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOG_CLK_ENABLE();
   __HAL_RCC_GPIOD_CLK_ENABLE();
-  __HAL_RCC_GPIOC_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
@@ -734,6 +740,118 @@ void PY_OV2640_RGB565_CONFIG(void) {
 }
 
 /* USER CODE END 4 */
+
+/* USER CODE BEGIN Header_StartDefaultTask */
+/**
+  * @brief  Function implementing the defaultTask thread.
+  * @param  argument: Not used
+  * @retval None
+  */
+/* USER CODE END Header_StartDefaultTask */
+void StartDefaultTask(void const * argument)
+{
+  /* init code for USB_HOST */
+
+  /* init code for LWIP */
+  MX_LWIP_Init();
+  /* USER CODE BEGIN 5 */
+  tcp_server_init();
+
+  /* Infinite loop */
+  for(;;)
+  {
+    osDelay(1);
+  }
+  /* USER CODE END 5 */
+}
+
+/* USER CODE BEGIN Header_StartTask02 */
+/**
+* @brief Function implementing the myTask02 thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_StartTask02 */
+void StartTask02(void const * argument)
+{
+  /* USER CODE BEGIN StartTask02 */
+
+					DCMI_DMA_MemInc_En();
+	//	    	 for (uint8_t i=0; i<5;i++)
+	//	    	  {
+	//
+	//		 		     HAL_DCMI_DisableCrop (&hdcmi);
+	//		 	    	 DCMI_RN = HEIGHT;
+	//		 	    	 DCMI_CN = 1280;
+	//		 	    	 DCMI_RS =0;
+	//		 	    	 DCMI_CS = 0;
+	//		 	    	 HAL_DCMI_ConfigCrop (&hdcmi, DCMI_CS, DCMI_RS, DCMI_CN, DCMI_RN);
+	//		 	    	 HAL_Delay(1);
+	//		 	    	 HAL_DCMI_EnableCrop (&hdcmi);
+	//		 	    	 HAL_Delay(1);
+	//		 	    	 dcmi_dma_status = HAL_DCMI_Start_DMA(&hdcmi, DCMI_MODE_SNAPSHOT, (uint32_t)testsram,DCMI_CN*DCMI_RN/4);
+	//	                 while(HAL_DMA_GetState(&hdcmi)==HAL_DMA_STATE_BUSY){} ;
+	//	 	 	    	 HAL_DCMI_Stop(&hdcmi);
+	//		             sprintf(filename,"%d.bmp",i);
+	//	    	 	 	 ETX_MSC_ProcessUsbDevice(filename,(uint8_t*)testsram);
+	//	    	 	 	HAL_GPIO_TogglePin(GPIOG,GPIO_PIN_9);
+	//	    	 }
+  /* Infinite loop */
+  for(;;)
+  {
+	//  HAL_DCMI_DisableCrop (&hdcmi);
+
+//			    	 for (uint8_t i=0; i<5;i++)
+//			    	 {
+//
+//				 	    	 DCMI_RN = HEIGHT;
+//				 	    	 DCMI_CN = 1280;
+//				 	    	 DCMI_RS =0;
+//				 	    	 DCMI_CS = 0;
+//				 	    	 HAL_DCMI_ConfigCrop (&hdcmi, DCMI_CS, DCMI_RS, DCMI_CN, DCMI_RN);
+//				 	    	 HAL_Delay(1);
+//				 	    	 HAL_DCMI_EnableCrop (&hdcmi);
+//				 	    	 HAL_Delay(1);
+//				 	    	 dcmi_dma_status = HAL_DCMI_Start_DMA(&hdcmi, DCMI_MODE_SNAPSHOT, (uint32_t)testsram,DCMI_CN*DCMI_RN/4);
+//			                 while(HAL_DMA_GetState(&hdcmi)==HAL_DMA_STATE_BUSY){} ;
+//			 	 	    	 HAL_DCMI_Stop(&hdcmi);
+//				             sprintf(filename,"%d.bmp",i);
+//			    	 	 	 ETX_MSC_ProcessUsbDevice(filename,(uint8_t*)testsram);
+			    	 	 	 HAL_GPIO_TogglePin(GPIOG,GPIO_PIN_9);
+			    	 	 	 osDelay(2000);
+//
+//			    	 }
+			    	//    osDelay(2000000);
+
+
+  }
+
+
+  }
+  /* USER CODE END StartTask02 */
+
+
+
+/**
+  * @brief  Period elapsed callback in non blocking mode
+  * @note   This function is called  when TIM7 interrupt took place, inside
+  * HAL_TIM_IRQHandler(). It makes a direct call to HAL_IncTick() to increment
+  * a global variable "uwTick" used as application time base.
+  * @param  htim : TIM handle
+  * @retval None
+  */
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
+  /* USER CODE BEGIN Callback 0 */
+
+  /* USER CODE END Callback 0 */
+  if (htim->Instance == TIM7) {
+    HAL_IncTick();
+  }
+  /* USER CODE BEGIN Callback 1 */
+
+  /* USER CODE END Callback 1 */
+}
 
 /**
   * @brief  This function is executed in case of error occurrence.
