@@ -114,47 +114,45 @@ struct tcp_pcb *pcbTx = 0;
 
 void echo()
 {
-char abc[200];
-for(int i=0;i<200;i++){
 
-	abc[i]=i%20;
-}
-	//__disable_irq(); // 关闭总中断
-
-//
-//	uint8_t * ss=(uint8_t*)(testsram);
-//	for(int i=0;i<614400;i++){
-//		*(ss+i)=i%20;
-//
-//	}
 	int index=0;
-
-
-	//__enable_irq(); // 开启总中断 但测试发现这样一个问题，在关闭总中断后，如果有中断触发，虽然此时不会引发中断，但在调用__enable_irq()开启总中断后，MCU会立即处理之前触发的中断。
-
-
 	int len=200;
-
 	counter=0;
 	while(counter<3072) {
+		osDelay(4);
 
-	esTx->p = pbuf_alloc(PBUF_RAW, len , PBUF_RAM);
-	//osDelay(2);
+	esTx->p = pbuf_alloc(PBUF_RAW, len , PBUF_POOL);
 
-	esTx->p->payload=abc;
-	if(esTx->p->payload!=136)
-		HAL_GPIO_TogglePin(GPIOG,GPIO_PIN_9);
-	//	pbuf_take(esTx->p,testsram+len*counter, len);
-		//osDelay(2);
+		pbuf_take(esTx->p,testsram+len*counter, len);
 
 		tcp_client_send(pcbTx, esTx);
-	//	osDelay(2);
 
 		pbuf_free(esTx->p);
 
-		counter++;
+	counter++;
+
 
 	}
+
+
+
+
+//
+//	while(counter<3072) {
+//
+//	esTx->p = pbuf_alloc(PBUF_RAW, len , PBUF_POOL);
+//
+//		pbuf_take(esTx->p,testsram+len*counter, len);
+//		tcp_client_send(pcbTx, esTx);
+//
+//		pbuf_free(esTx->p);
+//
+//	counter++;
+//	osDelay(2);
+//
+//
+//	}
+
 
 
 
