@@ -3,9 +3,8 @@
 #include <string.h>
 #include <winsock2.h>
 #include <pthread.h>
-#define PER_SIZE 10000
 #define SENDNAME "pretty5.mp4"
-#define SHORT_BUF 800
+#define SHORT_BUF (1100)
 
 #define LOCAL_IP "192.168.1.7"
 #define LOCAL_PORT ((uint16_t)12345)
@@ -124,8 +123,6 @@ int Rgb565ConvertBmp(char *buf,int width,int height, const char *filename)
 
 
 
-
-
 int main(void)
 {
     int ret = 0;
@@ -181,20 +178,36 @@ int main(void)
 
     debug("accept %s:%d...\r\n", LOCAL_IP, LOCAL_PORT);
 
+    int len=SHORT_BUF;
+    int circles_end=(int)614400/len;
+	int last_circle_bytes=614400%len;
+    	printf("circle times %d,last bytes;%d\n",circles_end,last_circle_bytes);
+
+
     if ((newsock = accept(sock, (struct sockaddr *)&client, &addrlen)) == SOCKET_ERROR)
     {
         ret = -4;
         goto __exit;
     }
-    char buffer[PER_SIZE];
     debug("%s:%d connected\r\n", inet_ntoa(client.sin_addr), client.sin_port);
     char filename[128];
     unsigned char filename_len[1];
+    int counter=0;
+	if(last_circle_bytes!=0)circles_end+=1;
 
-    int index=0;
-    while(index<768){
-   recv(newsock, buf_short, sizeof(buf_short), 0);
-   memcpy(buf+index*SHORT_BUF,buf_short,sizeof(buf_short));
+
+    while(counter<circles_end){
+
+    if(counter==(circles_end-1)&&last_circle_bytes!=0)
+    {
+        len=last_circle_bytes;
+        printf("last ------%d\n",len);
+
+
+    }
+
+   recv(newsock, buf_short, len, 0);
+   memcpy(buf+counter*SHORT_BUF,buf_short,len);
 
 
 //    if(buf_short[0]!=0&&buf_short[0]!=136){
@@ -212,8 +225,8 @@ int main(void)
 
 
 
-if(index%SHORT_BUF==0){
-    printf("%d  ",index);
+if(counter%SHORT_BUF==0){
+    printf("%d  ",counter);
 //       for(int i=0;i<20;i++){
 //  printf("%d,",buf_short[i]);
 
@@ -224,7 +237,7 @@ if(index%SHORT_BUF==0){
 
 }
 
-index+=1;
+counter+=1;
     }
 
     printf("\n------------------------------------------------------\n");

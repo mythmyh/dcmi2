@@ -151,7 +151,6 @@ void tcp_client_init(void) {
 	ip_addr_t destIPADDR;
 	IP_ADDR4(&destIPADDR, 192, 168, 1, 7);
 	tcp_connect(tpcb, &destIPADDR, 12345, tcp_client_connected);
-	osDelay(1000);
 }
 
 /** This callback is called, when the client is connected to the server

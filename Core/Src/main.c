@@ -305,7 +305,6 @@ int main(void)
   MX_FATFS_Init();
   /* USER CODE BEGIN 2 */
   MX_USB_HOST_Init();
-  MX_LWIP_Init();
 
 	//  while(APPLICATION_READY!=Appli_state){	MX_USB_HOST_Process();};
 
@@ -759,16 +758,17 @@ void PY_OV2640_RGB565_CONFIG(void) {
 void StartDefaultTask(void const * argument)
 {
   /* init code for USB_HOST */
+	  MX_LWIP_Init();
 
   /* USER CODE BEGIN 5 */
-  /* Infinite loop */
-	osDelay(5000);
-  for(;;)
-  {
 	  tcp_client_init();
 
-	  echo();
-    osDelay(1000000);
+  /* Infinite loop */
+  for(;;)
+  {
+
+	//  echo();
+    osDelay(1000);
   }
   /* USER CODE END 5 */
 }
@@ -790,19 +790,9 @@ void StartTask02(void const * argument)
   /* Infinite loop */
   for(;;)
   {
-	//  osDelay(10000000000000000);
-//
-//	  bx+=20;
-//	  if(testsram[bx]==2)
-//		 			    	 	 	 HAL_GPIO_TogglePin(GPIOG,GPIO_PIN_9);
-//
-//	  osDelay(100);
-
 			    	 for (uint8_t i=0; i<5;i++)
 			    	 {
 			    		  HAL_DCMI_DisableCrop (&hdcmi);
-
-
 				 	    	 DCMI_RN = HEIGHT;
 				 	    	 DCMI_CN = 1280;
 				 	    	 DCMI_RS =0;
