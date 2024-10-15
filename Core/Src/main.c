@@ -767,7 +767,7 @@ void StartDefaultTask(void const * argument)
   for(;;)
   {
 
-	//  echo();
+	  echo();
     osDelay(1000);
   }
   /* USER CODE END 5 */
@@ -805,7 +805,7 @@ void StartTask02(void const * argument)
 			                 while(HAL_DMA_GetState(&hdcmi)==HAL_DMA_STATE_BUSY){} ;
 			 	 	    	 HAL_DCMI_Stop(&hdcmi);
 				             sprintf(filename,"%d.bmp",i);
-			    	 	 	 ETX_MSC_ProcessUsbDevice(filename,(uint8_t*)testsram);
+			    	 	 	// ETX_MSC_ProcessUsbDevice(filename,(uint8_t*)testsram);
 			    	 	 	 HAL_GPIO_TogglePin(GPIOG,GPIO_PIN_9);
 			    	 	 	 if(i==1){
 
