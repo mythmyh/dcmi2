@@ -23,7 +23,7 @@
 #define INC_TCPCLIENTRAW_H_
 
 void tcp_client_init(void);
-
+void echo(void);
 
 
 #endif /* INC_TCPCLIENTRAW_H_ */

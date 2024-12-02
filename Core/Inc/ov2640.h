@@ -90,6 +90,8 @@ uint8_t OV2640_OutSize_Set(uint16_t width,uint16_t height);
 uint8_t OV2640_ImageWin_Set(uint16_t offx,uint16_t offy,uint16_t width,uint16_t height);
 uint8_t OV2640_ImageSize_Set(uint16_t width,uint16_t height);
 void OV2640_RGB565_Mode(void);
+void OV2640_JPEG_Mode(void);		//JPEG模式
+
 void OV2640_UXGA_Init(void);
    
 #endif

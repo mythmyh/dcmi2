@@ -53,7 +53,7 @@
  **/
 
 /* This file was modified by ST */
-#include<stdlib.h>
+
 #include "tcpClientRAW.h"
 
 #include "lwip/tcp.h"
@@ -61,10 +61,6 @@
 #include<string.h>
 extern uint8_t testsram[614400];
 extern uint8_t abc[960];
-extern volatile int echo_run;
-extern int resend_no;
-
-char introduction[4];
 /*  protocol states */
 enum tcp_client_states {
 	ES_NONE = 0, ES_CONNECTED, ES_RECEIVING, ES_CLOSING
@@ -89,7 +85,7 @@ static err_t tcp_client_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p,
 
 /* This callback will be called, when the server Polls for the Client */
 static err_t tcp_client_poll(void *arg, struct tcp_pcb *tpcb);
-void resend(int counter);
+
 /* This callback will be called, when the server acknowledges the data sent by the client */
 static err_t tcp_client_sent(void *arg, struct tcp_pcb *tpcb, u16_t len);
 
@@ -104,8 +100,6 @@ static void tcp_client_connection_close(struct tcp_pcb *tpcb,
 static void tcp_client_handle(struct tcp_pcb *tpcb,
 		struct tcp_client_struct *es);
 void echo();
-void send_poolsize(int counter);
-
 volatile int counter = 0;
 volatile int len;
 
@@ -117,29 +111,25 @@ static struct tcp_pcb *pcbTx = 0;
 int numarr[2];
 
 void echo(void) {
-	len = 952;
+
+
+
+	 len = 952;
 	int step=952;
 	counter = 0;
 	int circles_end=(int)(614400/len);
 	int last_circle_bytes=614400%len;
 	if(last_circle_bytes!=0)circles_end+=1;
 	circle_time++;
-	int persize=960;
 	numarr[0]=circle_time;
-	osDelay(5);
 	while (counter < circles_end) {
 
+
 		//the last one of the circles
-		if(counter==(circles_end-1)&&last_circle_bytes!=0)persize=last_circle_bytes+8;
+		if(counter==(circles_end-1)&&last_circle_bytes!=0)len=last_circle_bytes;
 
-		esTx->p = pbuf_alloc(PBUF_RAW, persize, PBUF_POOL);
+		esTx->p = pbuf_alloc(PBUF_RAW, len, PBUF_POOL);
 		numarr[1]=counter;
-
-//		if(counter >=643 &&counter <645){
-//			numarr[1]=2000;
-//
-//		}
-
 		memcpy(abc,numarr, 8);
 
 		memcpy(abc+8,testsram+step*counter,len);
@@ -147,99 +137,24 @@ void echo(void) {
 		if(esTx->p!=NULL){
 
 		//pbuf_take(esTx->p,abc, len);
-		pbuf_take(esTx->p,abc, persize);
+
+
+		pbuf_take(esTx->p,abc, 960);
+		osDelay(5);
+
+
 		tcp_client_send(pcbTx, esTx);
-
 //		if(esTx->p!=NULL)
-
 		pbuf_free(esTx->p);
 
 		counter++;
-
 		}
 	}
 
-	echo_run =0;
 
 
 }
 
-
-
-void send_poolsize(int counter) {
-	len = 952;
-	int step=952;
-	int counter_end =counter+ 3;
-
-	int circles_end=(int)(614400/len);
-
-	int last_circle_bytes=614400%len;
-	if(last_circle_bytes!=0)circles_end+=1;
-	if (counter_end>circles_end)
-		counter_end=circles_end;
-	circle_time++;
-	int persize=960;
-	numarr[0]=circle_time;
-	printf("counter=%d,end=%d\r\n",counter,counter_end);
-
-	while (counter < counter_end) {
-
-		//the last one of the circles
-		if(counter==(circles_end-1)&&last_circle_bytes!=0)persize=last_circle_bytes+8;
-
-		esTx->p = pbuf_alloc(PBUF_RAW, persize, PBUF_POOL);
-		numarr[1]=counter;
-
-		memcpy(abc,numarr, 8);
-
-		memcpy(abc+8,testsram+step*counter,len);
-
-		if(esTx->p!=NULL){
-
-		pbuf_take(esTx->p,abc, persize);
-
-		tcp_client_send(pcbTx, esTx);
-
-		pbuf_free(esTx->p);
-		counter++;
-
-		}
-	}
-
-}
-
-void resend(int counter) {
-	len = 952;
-	int step=952;
-
-	numarr[0]=circle_time;
-	int circles_end=(int)(614400/len);
-	int persize=952;
-	int last_circle_bytes=614400%len;
-		//the last one of the circles
-		if(counter==(circles_end-1)&&last_circle_bytes!=0)persize=last_circle_bytes+8;
-		esTx->p = pbuf_alloc(PBUF_RAW, persize, PBUF_POOL);
-		numarr[1]=counter;
-		printf("counter =%d\r\n",counter);
-		memcpy(abc,numarr, 8);
-		memcpy(abc+8,testsram+step*counter,len);
-
-		if(esTx->p!=NULL){
-
-		//pbuf_take(esTx->p,abc, len);
-
-
-		pbuf_take(esTx->p,abc, persize);
-
-
-		tcp_client_send(pcbTx, esTx);
-
-//		if(esTx->p!=NULL)
-		pbuf_free(esTx->p);
-		}
-
-
-}
 
 
 //void echo(void) {
@@ -386,43 +301,19 @@ static err_t tcp_client_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p,
 		ret_err = err;
 	} else if (es->state == ES_CONNECTED) {
 		/* store reference to incoming pbuf (chain) */
-		//es->p = p;
-		struct pbuf *ptmp=p;
-		char num[3];
-		while(ptmp!=NULL){
-
-			for(int i=0;i<p->len;i++){
-
-				//printf("%c",*((char *)p->payload+i));
-				num[i]=*((char *)p->payload+i);
-			}
-			ptmp=p->next;
-		}
-		resend_no=atoi(num);
-//
-		if(resend_no==666){
-			echo_run=1;
-		}else if(resend_no>666){
-			printf("send pool_size\r\n");
-			resend_no-=667;
-			send_poolsize(resend_no);
-
-		}
-		else{
-			//resend_no=receive;
-			resend(resend_no);
-		}
+		es->p = p;
 
 		// tcp_sent has already been initialized in the beginning.
 //    /* initialize LwIP tcp_sent callback function */
 //    tcp_sent(tpcb, tcp_client_sent);
 
-
-
 		/* Acknowledge the received data */
 		tcp_recved(tpcb, p->tot_len);
 
 		/* handle the received data */
+		printf("----------\r\n");
+		tcp_client_handle(tpcb, es);
+
 		pbuf_free(p);
 
 		ret_err = ERR_OK;
@@ -506,27 +397,32 @@ static void tcp_client_send(struct tcp_pcb *tpcb,struct tcp_client_struct*es) {
 	    /* get pointer on pbuf from es structure */
 	    ptr = es->p;
 	  //  taskENTER_CRITICAL();
-		   // taskEXIT_CRITICAL();
-
 	    /* enqueue data for transmission */
 
-	NVIC_DisableIRQ(ETH_IRQn);
+	//NVIC_DisableIRQ(ETH_IRQn);
 //
 	    wr_err = tcp_write(tpcb, ptr->payload, ptr->len, 1);
 
+		   // taskEXIT_CRITICAL();
 
-		HAL_NVIC_EnableIRQ(ETH_IRQn);
+		//HAL_NVIC_EnableIRQ(ETH_IRQn);
 
-		NVIC_DisableIRQ(ETH_IRQn);
-//
+		//NVIC_DisableIRQ(ETH_IRQn);
+	    //taskENTER_CRITICAL();
+	    if(wr_err==ERR_OK)
+	    {
 	    	wr_err=tcp_output(tpcb);
-//
-//
+		if(wr_err==ERR_OK)
+
+		pbuf_free(ptr);
+		else
+	    	printf("output wrong ");
 
 
-			HAL_NVIC_EnableIRQ(ETH_IRQn);
+	    }else{
+	    	printf("wrong wrong ");
 
-
+	    }
 //			if(counter==300){
 //						memset(abc,0,5);
 //						memcpy(abc,(uint8_t *)(ptr->payload),5);
@@ -535,6 +431,7 @@ static void tcp_client_send(struct tcp_pcb *tpcb,struct tcp_client_struct*es) {
 //					}
 		  //  taskEXIT_CRITICAL();
 
+		//	HAL_NVIC_EnableIRQ(ETH_IRQn);
 
 
 

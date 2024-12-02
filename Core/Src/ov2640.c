@@ -392,6 +392,31 @@ const uint8_t ov2640_rgb565_reg_tbl[][2]=
 		0xe1, 0x67
 };
 
+
+const uint8_t ov2640_yuv422_reg_tbl[][2]=
+{
+	0xFF, 0x00,
+	0xDA, 0x10,
+	0xD7, 0x03,
+	0xDF, 0x00,
+	0x33, 0x80,
+	0x3C, 0x40,
+	0xe1, 0x77,
+	0x00, 0x00,
+};
+const uint8_t ov2640_jpeg_reg_tbl[][2]=
+{
+	0xff, 0x01,
+	0xe0, 0x14,
+	0xe1, 0x77,
+	0xe5, 0x1f,
+	0xd7, 0x03,
+	0xda, 0x10,
+	0xe0, 0x00,
+};
+
+
+
 //OV2640 mode: RGB565
 void OV2640_RGB565_Mode(void)
 {
@@ -402,6 +427,22 @@ void OV2640_RGB565_Mode(void)
 		SCCB_WR_Reg(ov2640_rgb565_reg_tbl[i][0],ov2640_rgb565_reg_tbl[i][1]);
 	}
 }
+
+void OV2640_JPEG_Mode(void)
+{
+	uint16_t i=0;
+	//设置:YUV422格式
+	for(i=0;i<(sizeof(ov2640_yuv422_reg_tbl)/2);i++)
+	{
+		SCCB_WR_Reg(ov2640_yuv422_reg_tbl[i][0],ov2640_yuv422_reg_tbl[i][1]);
+	}
+	//设置:输出JPEG数据
+	for(i=0;i<(sizeof(ov2640_jpeg_reg_tbl)/2);i++)
+	{
+		SCCB_WR_Reg(ov2640_jpeg_reg_tbl[i][0],ov2640_jpeg_reg_tbl[i][1]);
+	}
+}	//JPEG模式
+
 
 //AUTOEXPOSURE LEVEL PARAMETER: 5 levels
 const static uint8_t OV2640_AUTOEXPOSURE_LEVEL[5][8]=
