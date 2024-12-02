@@ -39,7 +39,9 @@
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 #define BUFFSIZE 614400
- uint8_t testsram[614400]  __attribute__((section(".sram")));
+#define  MSS 952
+ uint8_t testsram[BUFFSIZE]  __attribute__((section(".sram")));
+ int all_circle=0,left_bytes=0;
  //uint32_t abc[240];
  uint8_t abc[960];
 
@@ -415,20 +417,12 @@ int main(void)
   MX_FATFS_Init();
   /* USER CODE BEGIN 2 */
 
- // while(APPLICATION_READY!=Appli_state){	MX_USB_HOST_Process();};
-printf("hello world\r\n");
   PY_OV2640_RGB565_CONFIG();
+  all_circle=(int)BUFFSIZE/MSS;
+  left_bytes = BUFFSIZE%MSS;
+  if (left_bytes!=0)
+	  all_circle++;
 
-for(int i=0;i<614400;i++){
-
-	testsram[i]=i%200;
-}
-printf("hello world 2\r\n");
-
-for(int i=0;i<960;i++){
-
-	abc[i]=i%200;
-}
 __HAL_DCMI_ENABLE_IT(&hdcmi, DCMI_IT_FRAME);//使用帧中�??????????????
   			//printf("start2\r\n");
   		//memset((void *)testsram,0,BUFFSIZE);//把接收BUF清空
@@ -444,7 +438,6 @@ __HAL_DCMI_ENABLE_IT(&hdcmi, DCMI_IT_FRAME);//使用帧中�??????????????
  	    	 dcmi_dma_status = HAL_DCMI_Start_DMA(&hdcmi, DCMI_MODE_SNAPSHOT, (uint32_t)testsram,DCMI_CN*DCMI_RN/4);
             // while(HAL_DMA_GetState(&hdcmi)==HAL_DMA_STATE_BUSY){} ;
  	    	 HAL_DCMI_Stop(&hdcmi);
- 	    	printf("hello world 3\r\n");
 
   /* USER CODE END 2 */
 

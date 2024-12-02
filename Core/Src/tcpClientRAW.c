@@ -59,10 +59,12 @@
 #include "lwip/tcp.h"
 #include "cmsis_os.h"
 #include<string.h>
-extern uint8_t testsram[614400];
+#define BUFFSIZE 614400
+extern uint8_t testsram[BUFFSIZE];
 extern uint8_t abc[960];
 extern volatile int echo_run;
 extern int resend_no;
+extern  int all_circle,left_bytes;
 
 char introduction[4];
 /*  protocol states */
@@ -171,12 +173,8 @@ void send_poolsize(int counter) {
 	int step=952;
 	int counter_end =counter+ 3;
 
-	int circles_end=(int)(614400/len);
-
-	int last_circle_bytes=614400%len;
-	if(last_circle_bytes!=0)circles_end+=1;
-	if (counter_end>circles_end)
-		counter_end=circles_end;
+	if (counter_end>all_circle)
+		counter_end=all_circle;
 	circle_time++;
 	int persize=960;
 	numarr[0]=circle_time;
@@ -185,7 +183,7 @@ void send_poolsize(int counter) {
 	while (counter < counter_end) {
 
 		//the last one of the circles
-		if(counter==(circles_end-1)&&last_circle_bytes!=0)persize=last_circle_bytes+8;
+		if(counter==(all_circle-1)&&left_bytes!=0)persize=left_bytes+8;
 
 		esTx->p = pbuf_alloc(PBUF_RAW, persize, PBUF_POOL);
 		numarr[1]=counter;
@@ -213,9 +211,9 @@ void resend(int counter) {
 	int step=952;
 
 	numarr[0]=circle_time;
-	int circles_end=(int)(614400/len);
+	int circles_end=(int)(BUFFSIZE/len);
 	int persize=952;
-	int last_circle_bytes=614400%len;
+	int last_circle_bytes=BUFFSIZE%len;
 		//the last one of the circles
 		if(counter==(circles_end-1)&&last_circle_bytes!=0)persize=last_circle_bytes+8;
 		esTx->p = pbuf_alloc(PBUF_RAW, persize, PBUF_POOL);
@@ -400,16 +398,18 @@ static err_t tcp_client_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p,
 		}
 		resend_no=atoi(num);
 //
-		if(resend_no==666){
+		if(resend_no==6666){
 			echo_run=1;
-		}else if(resend_no>666){
-			printf("send pool_size\r\n");
-			resend_no-=667;
+		}else if(resend_no>=(all_circle+1)){
+			printf("send pool_size %d\r\n",all_circle+1);
+			resend_no-=all_circle+1;
 			send_poolsize(resend_no);
 
 		}
 		else{
 			//resend_no=receive;
+			printf("send resend_no %d\r\n",all_circle+1);
+
 			resend(resend_no);
 		}
 
