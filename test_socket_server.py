@@ -4,10 +4,16 @@ from ctypes import *
 import hashlib
 import struct
 import copy
+# mss大小
+import time
+per_mss = 1400-8
+pure_data = 1400-8
+# 分辨率 总buf大小
+total_size = 640 * 480*2
 
-per_mss = 952
-circle_times = int(614400 / per_mss)
-last_circle_bytes = 614400 % per_mss
+circle_times = int(total_size/ per_mss)
+last_circle_bytes = total_size % per_mss
+buf = [0]*total_size
 
 
 class tagBITMAPINFOHEADER(LittleEndianStructure):
@@ -118,24 +124,22 @@ def Rgb565ConvertBmp(buf2, width, height, filename):
 
 counter_set = set()
 
-buf = [0]*614400
-
 
 def receive_period(_clientsocket, _counter_set, _start, _end):
     global per_mss,buf
     _counter = _start
-    _clientsocket.send(str(_start+667).encode('utf-8'))
+    _clientsocket.send(str(_start+circle_times+1).encode('utf-8'))
     while _counter < _end:
         if _counter == circle_times - 1:
             per_mss = last_circle_bytes
         msg2 = _clientsocket.recv(per_mss + 8)
         # circ = int(msg[952:956])
         # local_round = int(msg[4:8])
-        print("counter=%d, start=%d,end=%d"%(_counter, _start, _end))
+        #print("counter=%d, start=%d,end=%d"%(_counter, _start, _end))
         server_counter = int.from_bytes(msg2[4:8], byteorder='little', signed=False)
         msg = msg2[8:]
-        if server_counter < 646:
-            buf[server_counter * 952:server_counter * 952 + per_mss] = msg
+        if server_counter < circle_times:
+            buf[server_counter * pure_data:server_counter * pure_data + per_mss] = msg
             _counter_set.add(server_counter)
         _counter += 1
     while not Rereceive(_clientsocket, _counter_set, _start,_end):
@@ -143,14 +147,14 @@ def receive_period(_clientsocket, _counter_set, _start, _end):
 
 
 def Rereceive(_clientsocket, _counter_set, _start, _end):
-    print("counter set %d, %d"%(_start,_end))
-    print(_counter_set)
+    #print("counter set %d, %d"%(_start,_end))
+    #print(_counter_set)
     fault_list = set()
     for z in range(_start, _end):
         if z not in _counter_set:
             fault_list.add(z)
             _clientsocket.send(str(z).encode('utf-8'))
-            _msg2 = clientsocket.recv(960)
+            _msg2 = clientsocket.recv(pure_data+8)
             _server_counter = int.from_bytes(_msg2[4:8], byteorder='little', signed=False)
             print("hello world %d" % _server_counter)
 
@@ -163,6 +167,7 @@ def Rereceive(_clientsocket, _counter_set, _start, _end):
         return True
     else:
         return False
+
 
 # pool_size接收
 if __name__ == '__main__':
@@ -185,11 +190,11 @@ if __name__ == '__main__':
     recv_data = 0
     counter = 0
 
-
-    if circle_times != 0:
+    if last_circle_bytes != 0:
         circle_times += 1
     clientsocket, addr = serversocket.accept()
     print(clientsocket)
+    print("circle time %d "%circle_times)
 
     #clientsocket.send("helloworld".encode('utf-8'))
     bmp_prefix=1
@@ -197,37 +202,35 @@ if __name__ == '__main__':
     md52=set()
     md53=set()
 
-
     total_len=0
     first_run= True
     same_array = 0
     server_circle = 0
-    step =3
+    step = 3
+
     while True:
 
         filename = "./ov2640/"+str(bmp_prefix)+'.bmp'
-        for start in range(0, 646, step):
-            end = start+ step
-            if end >= 646:
-                end = 646
+        time_start = time.time()
+        for start in range(0, circle_times, step):
+            end = start + step
+            if end >= circle_times:
+                end = circle_times
             counter_set.clear()
-            print("---start %d,%d"%(start,end))
+            #print("---start %d,%d"%(start,end))
             receive_period(clientsocket, counter_set,start, end)
-            print("---end %d,%d"%(start,end))
+            #print("---end %d,%d"%(start,end))
+        time_end=time.time()
+        print(time_start-time_end)
 
         Rgb565ConvertBmp(buf, 640, 480, filename)
 
-        print(counter_set)
-
-        print(f"server count %d " % server_circle)
-
-        print(filename, " wrong", str(len(buf)))
-
+        print(filename, " right", str(len(buf)))
             #time.sleep(10000)
         print("end----------------------------")
-        buf = [0]*614400
+        buf = [0]*total_size
         counter = 0
-        per_mss = 952
+        per_mss = 1392
         counter_set.clear()
         bmp_prefix += 1
         #clientsocket.send("666".encode('utf-8'))

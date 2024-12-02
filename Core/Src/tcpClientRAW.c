@@ -169,16 +169,16 @@ void echo(void) {
 
 
 void send_poolsize(int counter) {
-	len = 952;
-	int step=952;
+	len = 1400-8;
+	int step=1400-8;
 	int counter_end =counter+ 3;
 
 	if (counter_end>all_circle)
 		counter_end=all_circle;
 	circle_time++;
-	int persize=960;
+	int persize=1400;
 	numarr[0]=circle_time;
-	printf("counter=%d,end=%d\r\n",counter,counter_end);
+//	printf("counter=%d,end=%d\r\n",counter,counter_end);
 
 	while (counter < counter_end) {
 
@@ -401,7 +401,7 @@ static err_t tcp_client_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p,
 		if(resend_no==6666){
 			echo_run=1;
 		}else if(resend_no>=(all_circle+1)){
-			printf("send pool_size %d\r\n",all_circle+1);
+			//printf("send pool_size %d\r\n",all_circle+1);
 			resend_no-=all_circle+1;
 			send_poolsize(resend_no);
 
@@ -510,21 +510,21 @@ static void tcp_client_send(struct tcp_pcb *tpcb,struct tcp_client_struct*es) {
 
 	    /* enqueue data for transmission */
 
-	NVIC_DisableIRQ(ETH_IRQn);
+	//NVIC_DisableIRQ(ETH_IRQn);
 //
 	    wr_err = tcp_write(tpcb, ptr->payload, ptr->len, 1);
 
 
-		HAL_NVIC_EnableIRQ(ETH_IRQn);
+		//HAL_NVIC_EnableIRQ(ETH_IRQn);
 
-		NVIC_DisableIRQ(ETH_IRQn);
+	//	NVIC_DisableIRQ(ETH_IRQn);
 //
 	    	wr_err=tcp_output(tpcb);
 //
 //
 
 
-			HAL_NVIC_EnableIRQ(ETH_IRQn);
+		//	HAL_NVIC_EnableIRQ(ETH_IRQn);
 
 
 //			if(counter==300){
