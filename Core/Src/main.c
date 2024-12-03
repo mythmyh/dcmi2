@@ -43,9 +43,9 @@
  uint8_t testsram[BUFFSIZE]  __attribute__((section(".sram")));
  int all_circle=0,left_bytes=0;
  //uint32_t abc[240];
- uint8_t abc[1400];
+ uint8_t abc[5]={'s','t','a','r','t'};
 
-volatile int echo_run=0;
+volatile int echo_run=1;
 int resend_no=0;
 
 #ifdef __GNUC__
@@ -66,7 +66,8 @@ extern char USBHPath[4];
 extern struct netif gnetif;
 FATFS otgupan;
 FIL myFile;
-
+extern struct tcp_client_struct *esTx;
+extern struct tcp_pcb *pcbTx ;
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -217,26 +218,6 @@ int Rgb565ConvertBmp(uint8_t* buf,int width,int height,FIL * fp)
 	 return 0;
 }
 
-
-
-void saveToJpg(void)
-{
-//
-//	uint32_t byteswritten;
-//
-//
-//
-//	for(int i=0; i<height; i++){
-//		f_write(fp,buf+(width*(height-i-1)*2), 2*width,(void *)&byteswritten);
-//	}
-//
-//    f_close( fp );
-//
-//	 return 0;
-	int d=(int)(614400/4)-__HAL_DMA_GET_COUNTER(&hdma_dcmi);
-	 printf("%d\n",d*4);//得到剩余数据长度
-
-}
 
 
 static FRESULT ETX_MSC_ProcessUsbDevice(char * filename,uint8_t * data)
@@ -423,21 +404,11 @@ int main(void)
   if (left_bytes!=0)
 	  all_circle++;
   printf("hello world\r\n");
-__HAL_DCMI_ENABLE_IT(&hdcmi, DCMI_IT_FRAME);//使用帧中�??????????????????
-  			//printf("start2\r\n");
-  		//memset((void *)testsram,0,BUFFSIZE);//把接收BUF清空
-		  HAL_DCMI_DisableCrop (&hdcmi);
- 	    	 DCMI_RN = HEIGHT;
- 	    	 DCMI_CN = 1280;
- 	    	 DCMI_RS =0;
- 	    	 DCMI_CS = 0;
- 	    	 HAL_DCMI_ConfigCrop (&hdcmi, DCMI_CS, DCMI_RS, DCMI_CN, DCMI_RN);
- 	    	 HAL_Delay(1);
- 	    	 HAL_DCMI_EnableCrop (&hdcmi);
- 	    	 HAL_Delay(1);
- 	    	 dcmi_dma_status = HAL_DCMI_Start_DMA(&hdcmi, DCMI_MODE_SNAPSHOT, (uint32_t)testsram,DCMI_CN*DCMI_RN/4);
-            // while(HAL_DMA_GetState(&hdcmi)==HAL_DMA_STATE_BUSY){} ;
- 	    	 HAL_DCMI_Stop(&hdcmi);
+
+
+
+  		 	 	    	// HAL_DCMI_Stop(&hdcmi);
+
 
   /* USER CODE END 2 */
 
@@ -468,8 +439,8 @@ __HAL_DCMI_ENABLE_IT(&hdcmi, DCMI_IT_FRAME);//使用帧中�??????????????????
   defaultTaskHandle = osThreadCreate(osThread(defaultTask), NULL);
 
   /* definition and creation of myTask02 */
-//  osThreadDef(myTask02, StartTask02, osPriorityAboveNormal, 0, 1024);
-//  myTask02Handle = osThreadCreate(osThread(myTask02), NULL);
+ // osThreadDef(myTask02, StartTask02, osPriorityAboveNormal, 0, 1024);
+ // myTask02Handle = osThreadCreate(osThread(myTask02), NULL);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
@@ -483,32 +454,6 @@ __HAL_DCMI_ENABLE_IT(&hdcmi, DCMI_IT_FRAME);//使用帧中�??????????????????
   /* USER CODE BEGIN WHILE */
 	while (1) {
 
-
-
-
-
-//				HAL_Delay(1);
-//				DCMI_DMA_MemInc_En();
-//	    	 for (uint8_t i=0; i<5;i++)
-//	    	  {
-//
-//		 		     HAL_DCMI_DisableCrop (&hdcmi);
-//		 	    	 DCMI_RN = HEIGHT;
-//		 	    	 DCMI_CN = 1280;
-//		 	    	 DCMI_RS =0;
-//		 	    	 DCMI_CS = 0;
-//		 	    	 HAL_DCMI_ConfigCrop (&hdcmi, DCMI_CS, DCMI_RS, DCMI_CN, DCMI_RN);
-//		 	    	 HAL_Delay(1);
-//		 	    	 HAL_DCMI_EnableCrop (&hdcmi);
-//		 	    	 HAL_Delay(1);
-//		 	    	 dcmi_dma_status = HAL_DCMI_Start_DMA(&hdcmi, DCMI_MODE_SNAPSHOT, (uint32_t)testsram,DCMI_CN*DCMI_RN/4);
-//	                 while(HAL_DMA_GetState(&hdcmi)==HAL_DMA_STATE_BUSY){} ;
-//	 	 	    	 HAL_DCMI_Stop(&hdcmi);
-//		             sprintf(filename,"%d.bmp",i);
-//	    	 	 	 ETX_MSC_ProcessUsbDevice(filename,(uint8_t*)testsram);
-//	    	 	 	HAL_GPIO_TogglePin(GPIOG,GPIO_PIN_9);
-//	    	 }
-//	    	 HAL_Delay(5000000);
 
 
 		//MX_LWIP_Process();
@@ -784,6 +729,12 @@ static void MX_FSMC_Init(void)
 /* USER CODE BEGIN 4 */
 
 
+
+
+
+
+
+
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
 	if (huart ==  &huart4)
@@ -871,7 +822,7 @@ void PY_OV2640_RGB565_CONFIG(void) {
 
 
 	OV2640_OutSize_Set(640, 480);
-	HAL_Delay(200);
+
 
 }
 
@@ -892,19 +843,26 @@ void StartDefaultTask(void const * argument)
   MX_LWIP_Init();
   /* USER CODE BEGIN 5 */
  tcp_client_init();
- printf("hello world 4\r\n");
+	__HAL_DCMI_ENABLE_IT(&hdcmi, DCMI_IT_FRAME);//使用帧中�??????????????????
+   		  HAL_DCMI_DisableCrop (&hdcmi);
+	 	    	 DCMI_RN = HEIGHT;
+	 	    	 DCMI_CN = 1280;
+	 	    	 DCMI_RS =0;
+	 	    	 DCMI_CS = 0;
+	 	    	 HAL_DCMI_ConfigCrop (&hdcmi, DCMI_CS, DCMI_RS, DCMI_CN, DCMI_RN);
+	 	    	 HAL_Delay(1);
+	 	    	 HAL_DCMI_EnableCrop (&hdcmi);
+	 	    	 HAL_Delay(1);
+	 	    	 HAL_DCMI_Start_DMA(&hdcmi, DCMI_MODE_SNAPSHOT, (uint32_t)testsram,DCMI_CN*DCMI_RN/4);
 
   /* Infinite loop */
   for(;;)
   {
-		//xSemaphoreTake(myMutex01Handle,portMAX_DELAY);
-		//printf("startdefault\r\n");
-if(echo_run==1)
-	  echo();
+//	if(echo_run==1)
+//	{
+//	  echo();
+//	}
 
-	//	xSemaphoreGive(myMutex01Handle);
-
-	 // saveToJpg();
 
   }
   /* USER CODE END 5 */
@@ -922,21 +880,19 @@ void StartTask02(void const * argument)
   /* USER CODE BEGIN StartTask02 */
 
 	  /* USER CODE BEGIN 5 */
-	//  MX_LWIP_Init();
 
-	DCMI_DMA_MemInc_En();
-		//tcp_client_init();
+
 
   /* Infinite loop */
   for(;;)
   {
-//			    	 for (uint8_t i=0; i<5;i++)
-//			    	 {
+
 		//xSemaphoreTake(myMutex01Handle,portMAX_DELAY);
 
+	  if(echo_run==0){
+		  printf("take photo\r\n");
+
 	  		    			__HAL_DCMI_ENABLE_IT(&hdcmi, DCMI_IT_FRAME);//使用帧中�??????????????????
-	  		    			//printf("start2\r\n");
-	  		    		//memset((void *)testsram,0,BUFFSIZE);//把接收BUF清空
 			    		  HAL_DCMI_DisableCrop (&hdcmi);
 				 	    	 DCMI_RN = HEIGHT;
 				 	    	 DCMI_CN = 1280;
@@ -947,20 +903,13 @@ void StartTask02(void const * argument)
 				 	    	 HAL_DCMI_EnableCrop (&hdcmi);
 				 	    	 HAL_Delay(1);
 				 	    	 dcmi_dma_status = HAL_DCMI_Start_DMA(&hdcmi, DCMI_MODE_SNAPSHOT, (uint32_t)testsram,DCMI_CN*DCMI_RN/4);
-			                // while(HAL_DMA_GetState(&hdcmi)==HAL_DMA_STATE_BUSY){} ;
 			 	 	    	 HAL_DCMI_Stop(&hdcmi);
-			    	 	 //	ETX_MSC_ProcessUsbDevice(filename,(uint8_t*)testsram);
-			    	 	 	// HAL_GPIO_TogglePin(GPIOG,GPIO_PIN_9);
-//			    	 	 	 if(i==1){
-//
-//			    	 	 	 break;
-//			    	 	 	 }
+			 	 	    	 echo_run=1;
+			 	 			  printf("echo run %d\r\n",echo_run);
 
-
-
-//			    	 }
-			    	 //		xSemaphoreGive(myMutex01Handle);
-				    	    osDelay(1000);
+			 	 	    	 osDelay(10);
+	  }
+			    	 //	xSemaphoreGive(myMutex01Handle);
 
 
 

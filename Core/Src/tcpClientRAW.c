@@ -60,18 +60,42 @@
 #include "cmsis_os.h"
 #include<string.h>
 #define BUFFSIZE 614400
+#define HEIGHT 480
 extern uint8_t testsram[BUFFSIZE];
-extern uint8_t abc[960];
+extern uint8_t abc[5];
 extern volatile int echo_run;
 extern int resend_no;
 extern  int all_circle,left_bytes;
-
-char introduction[4];
 /*  protocol states */
 enum tcp_client_states {
 	ES_NONE = 0, ES_CONNECTED, ES_RECEIVING, ES_CLOSING
 };
 int circle_time=0;
+
+
+
+
+
+
+
+
+
+extern HAL_StatusTypeDef dcmi_dma_status ;
+
+//uint32_t dcmi_data_buff[16000] = { 0 };
+//11328
+extern uint32_t DCMI_RN ;  //row number
+extern uint32_t DCMI_CN ;  //column number
+extern uint32_t DCMI_RS ;  //row start
+extern uint32_t DCMI_CS;  //column start
+
+/* USER CODE END PM */
+
+/* Private variables ---------------------------------------------------------*/
+extern DCMI_HandleTypeDef hdcmi;
+extern DMA_HandleTypeDef hdma_dcmi;
+
+
 
 /* structure for maintaining connection infos to be passed as argument
  to LwIP callbacks*/
@@ -105,7 +129,7 @@ static void tcp_client_connection_close(struct tcp_pcb *tpcb,
 /* This is the part where we are going to handle the incoming data from the server */
 static void tcp_client_handle(struct tcp_pcb *tpcb,
 		struct tcp_client_struct *es);
-void echo();
+void echo(void);
 void send_poolsize(int counter);
 
 volatile int counter = 0;
@@ -114,98 +138,44 @@ volatile int len;
 extern TIM_HandleTypeDef htim1;
 
 /* create a struct to store data */
-static struct tcp_client_struct *esTx = 0;
-static struct tcp_pcb *pcbTx = 0;
+ static struct tcp_client_struct *esTx = 0;
+ static struct tcp_pcb *pcbTx = 0;
 int numarr[2];
 
 void echo(void) {
-	len = 952;
-	int step=952;
-	counter = 0;
-	int circles_end=(int)(614400/len);
-	int last_circle_bytes=614400%len;
-	if(last_circle_bytes!=0)circles_end+=1;
-	circle_time++;
-	int persize=960;
-	numarr[0]=circle_time;
-	osDelay(5);
-	while (counter < circles_end) {
 
+		printf("hello world\r\n");
+
+
+		 HAL_DCMI_Stop(&hdcmi);
+		//osDelay(5);
+		echo_run =0;
 		//the last one of the circles
-		if(counter==(circles_end-1)&&last_circle_bytes!=0)persize=last_circle_bytes+8;
-
-		esTx->p = pbuf_alloc(PBUF_RAW, persize, PBUF_POOL);
-		numarr[1]=counter;
-
-//		if(counter >=643 &&counter <645){
-//			numarr[1]=2000;
-//
-//		}
-
-		memcpy(abc,numarr, 8);
-
-		memcpy(abc+8,testsram+step*counter,len);
-
+		esTx->p = pbuf_alloc(PBUF_RAW, 5, PBUF_POOL);
 		if(esTx->p!=NULL){
-
-		//pbuf_take(esTx->p,abc, len);
-		pbuf_take(esTx->p,abc, persize);
+		pbuf_take(esTx->p,abc, 5);
 		tcp_client_send(pcbTx, esTx);
-
-//		if(esTx->p!=NULL)
-
 		pbuf_free(esTx->p);
-
-		counter++;
-
 		}
-	}
 
-	echo_run =0;
+
 
 
 }
 
+void HAL_DCMI_FrameEventCallback(DCMI_HandleTypeDef *hdcmi2)
+{
+	echo_run =0;
+	//the last one of the circles
+	esTx->p = pbuf_alloc(PBUF_RAW, 5, PBUF_POOL);
+	if(esTx->p!=NULL){
+	pbuf_take(esTx->p,abc, 5);
+	tcp_client_send(pcbTx, esTx);
+	pbuf_free(esTx->p);
+	}
 
 
-//void send_poolsize(int counter) {
-//	len = 1400-8;
-//	int step=1400-8;
-//	int counter_end =counter+ 3;
-//
-//	if (counter_end>all_circle)
-//		counter_end=all_circle;
-//	circle_time++;
-//	int persize=1400;
-//	numarr[0]=circle_time;
-////	printf("counter=%d,end=%d\r\n",counter,counter_end);
-//
-//	while (counter < counter_end) {
-//
-//		//the last one of the circles
-//		if(counter==(all_circle-1)&&left_bytes!=0)persize=left_bytes+8;
-//
-//		esTx->p = pbuf_alloc(PBUF_RAW, persize, PBUF_POOL);
-//		numarr[1]=counter;
-//
-//		memcpy(abc,numarr, 8);
-//
-//		memcpy(abc+8,testsram+step*counter,len);
-//
-//		if(esTx->p!=NULL){
-//
-//		pbuf_take(esTx->p,abc, persize);
-//
-//		tcp_client_send(pcbTx, esTx);
-//
-//		pbuf_free(esTx->p);
-//		counter++;
-//
-//		}
-//	}
-//
-//}
-
+}
 void send_poolsize(int counter) {
 	len = 1400;
 	int step=1400;
@@ -221,7 +191,13 @@ void send_poolsize(int counter) {
 	while (counter < counter_end) {
 
 		//the last one of the circles
-		if(counter==(all_circle-1)&&left_bytes!=0)persize=left_bytes;
+		if(counter==(all_circle-1)&&left_bytes!=0){
+			persize=left_bytes;
+			echo_run=1;
+		 	 HAL_DCMI_Start_DMA(&hdcmi, DCMI_MODE_SNAPSHOT, (uint32_t)testsram,DCMI_CN*DCMI_RN/4);
+
+
+		}
 
 		esTx->p = pbuf_alloc(PBUF_RAW, persize, PBUF_POOL);
 		if(esTx->p!=NULL){
@@ -243,80 +219,6 @@ void send_poolsize(int counter) {
 
 
 
-void resend(int counter) {
-	len = 952;
-	int step=952;
-
-	numarr[0]=circle_time;
-	int circles_end=(int)(BUFFSIZE/len);
-	int persize=952;
-	int last_circle_bytes=BUFFSIZE%len;
-		//the last one of the circles
-		if(counter==(circles_end-1)&&last_circle_bytes!=0)persize=last_circle_bytes+8;
-		esTx->p = pbuf_alloc(PBUF_RAW, persize, PBUF_POOL);
-		numarr[1]=counter;
-		printf("counter =%d\r\n",counter);
-		memcpy(abc,numarr, 8);
-		memcpy(abc+8,testsram+step*counter,len);
-
-		if(esTx->p!=NULL){
-
-		//pbuf_take(esTx->p,abc, len);
-
-
-		pbuf_take(esTx->p,abc, persize);
-
-
-		tcp_client_send(pcbTx, esTx);
-
-//		if(esTx->p!=NULL)
-		pbuf_free(esTx->p);
-		}
-
-
-}
-
-
-//void echo(void) {
-//
-//
-//
-//	 len = 960;
-//	int step=960;
-//	counter = 0;
-//	int circles_end=(int)(614400/len);
-//	int last_circle_bytes=614400%len;
-//	if(last_circle_bytes!=0)circles_end+=1;
-//	printf("circle end:%d\r\n",circles_end);
-//	while (counter < circles_end) {
-//
-//		//the last one of the circles
-//		if(counter==(circles_end-1)&&last_circle_bytes!=0)len=last_circle_bytes;
-//
-//		esTx->p = pbuf_alloc(PBUF_RAW, len, PBUF_POOL);
-//
-//
-//
-//
-//		if(esTx->p!=NULL){
-//		osDelay(1);
-//
-//		pbuf_take(esTx->p,testsram+step*counter, len);
-//
-//		osDelay(5);
-//
-//		tcp_client_send(pcbTx, esTx);
-//		counter++;
-//
-//		}
-//		//if(esTx->p!=NULL)
-//		pbuf_free(esTx->p);
-//	}
-//
-//
-//
-//}
-
 /* IMPLEMENTATION FOR TCP CLIENT
 
  1. Create TCP block.
@@ -329,12 +231,12 @@ void tcp_client_init(void) {
 	struct tcp_pcb *tpcb;
 
 	tpcb = tcp_new();
+	 printf("hello world 5\r\n");
 
 	/* 2. Connect to the server */
 	ip_addr_t destIPADDR;
 	IP_ADDR4(&destIPADDR, 192, 168, 1, 7);
 	tcp_connect(tpcb, &destIPADDR, 12345, tcp_client_connected);
-	 printf("hello world 5\r\n");
 
 }
 
@@ -425,9 +327,7 @@ static err_t tcp_client_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p,
 		struct pbuf *ptmp=p;
 		char num[3];
 		while(ptmp!=NULL){
-
 			for(int i=0;i<p->len;i++){
-
 				//printf("%c",*((char *)p->payload+i));
 				num[i]=*((char *)p->payload+i);
 			}
@@ -447,7 +347,6 @@ static err_t tcp_client_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p,
 			//resend_no=receive;
 			printf("send resend_no %d\r\n",all_circle+1);
 
-			resend(resend_no);
 		}
 
 		// tcp_sent has already been initialized in the beginning.
