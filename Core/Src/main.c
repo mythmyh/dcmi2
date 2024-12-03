@@ -39,7 +39,7 @@
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 #define BUFFSIZE 614400
-#define  MSS (1400-8)
+#define  MSS (1400)
  uint8_t testsram[BUFFSIZE]  __attribute__((section(".sram")));
  int all_circle=0,left_bytes=0;
  //uint32_t abc[240];
@@ -422,7 +422,7 @@ int main(void)
   left_bytes = BUFFSIZE%MSS;
   if (left_bytes!=0)
 	  all_circle++;
-
+  printf("hello world\r\n");
 __HAL_DCMI_ENABLE_IT(&hdcmi, DCMI_IT_FRAME);//使用帧中�??????????????????
   			//printf("start2\r\n");
   		//memset((void *)testsram,0,BUFFSIZE);//把接收BUF清空
@@ -887,7 +887,6 @@ void PY_OV2640_RGB565_CONFIG(void) {
 void StartDefaultTask(void const * argument)
 {
   /* init code for USB_HOST */
-  MX_USB_HOST_Init();
 
   /* init code for LWIP */
   MX_LWIP_Init();

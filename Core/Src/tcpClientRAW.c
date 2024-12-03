@@ -168,9 +168,47 @@ void echo(void) {
 
 
 
+//void send_poolsize(int counter) {
+//	len = 1400-8;
+//	int step=1400-8;
+//	int counter_end =counter+ 3;
+//
+//	if (counter_end>all_circle)
+//		counter_end=all_circle;
+//	circle_time++;
+//	int persize=1400;
+//	numarr[0]=circle_time;
+////	printf("counter=%d,end=%d\r\n",counter,counter_end);
+//
+//	while (counter < counter_end) {
+//
+//		//the last one of the circles
+//		if(counter==(all_circle-1)&&left_bytes!=0)persize=left_bytes+8;
+//
+//		esTx->p = pbuf_alloc(PBUF_RAW, persize, PBUF_POOL);
+//		numarr[1]=counter;
+//
+//		memcpy(abc,numarr, 8);
+//
+//		memcpy(abc+8,testsram+step*counter,len);
+//
+//		if(esTx->p!=NULL){
+//
+//		pbuf_take(esTx->p,abc, persize);
+//
+//		tcp_client_send(pcbTx, esTx);
+//
+//		pbuf_free(esTx->p);
+//		counter++;
+//
+//		}
+//	}
+//
+//}
+
 void send_poolsize(int counter) {
-	len = 1400-8;
-	int step=1400-8;
+	len = 1400;
+	int step=1400;
 	int counter_end =counter+ 3;
 
 	if (counter_end>all_circle)
@@ -183,21 +221,13 @@ void send_poolsize(int counter) {
 	while (counter < counter_end) {
 
 		//the last one of the circles
-		if(counter==(all_circle-1)&&left_bytes!=0)persize=left_bytes+8;
+		if(counter==(all_circle-1)&&left_bytes!=0)persize=left_bytes;
 
 		esTx->p = pbuf_alloc(PBUF_RAW, persize, PBUF_POOL);
-		numarr[1]=counter;
-
-		memcpy(abc,numarr, 8);
-
-		memcpy(abc+8,testsram+step*counter,len);
-
 		if(esTx->p!=NULL){
 
-		pbuf_take(esTx->p,abc, persize);
-
+		pbuf_take(esTx->p,testsram+step*counter, persize);
 		tcp_client_send(pcbTx, esTx);
-
 		pbuf_free(esTx->p);
 		counter++;
 
@@ -205,6 +235,13 @@ void send_poolsize(int counter) {
 	}
 
 }
+
+
+
+
+
+
+
 
 void resend(int counter) {
 	len = 952;
@@ -499,124 +536,18 @@ static err_t tcp_client_sent(void *arg, struct tcp_pcb *tpcb, u16_t len) {
  */
 static void tcp_client_send(struct tcp_pcb *tpcb,struct tcp_client_struct*es) {
 	  struct pbuf *ptr;
-	  err_t wr_err = ERR_OK;
-
 
 
 	    /* get pointer on pbuf from es structure */
 	    ptr = es->p;
-	  //  taskENTER_CRITICAL();
-		   // taskEXIT_CRITICAL();
-
-	    /* enqueue data for transmission */
-
-	//NVIC_DisableIRQ(ETH_IRQn);
-//
-	    wr_err = tcp_write(tpcb, ptr->payload, ptr->len, 1);
+	tcp_write(tpcb, ptr->payload, ptr->len, 1);
 
 
-		//HAL_NVIC_EnableIRQ(ETH_IRQn);
-
-	//	NVIC_DisableIRQ(ETH_IRQn);
-//
-	    	wr_err=tcp_output(tpcb);
-//
-//
-
-
-		//	HAL_NVIC_EnableIRQ(ETH_IRQn);
-
-
-//			if(counter==300){
-//						memset(abc,0,5);
-//						memcpy(abc,(uint8_t *)(ptr->payload),5);
-//
-//						printf("circle time %d : %d,%d,%d,%d,%d,\r\n",circle_time, abc[0],abc[1],abc[2],abc[3],abc[4]);
-//					}
-		  //  taskEXIT_CRITICAL();
-
-
-
-
-		  //  taskEXIT_CRITICAL();
+	tcp_output(tpcb);
 
 
 
 }
-
-
-
-
-//
-//static void tcp_client_send(struct tcp_pcb *tpcb,struct tcp_client_struct*es) {
-//	  struct pbuf *ptr;
-//	  err_t wr_err = ERR_OK;
-//
-//	  while ((wr_err == ERR_OK) &&
-//	         (es->p != NULL) &&
-//	         (es->p->len <= tcp_sndbuf(tpcb)))
-//	  {
-//
-//	    /* get pointer on pbuf from es structure */
-//	    ptr = es->p;
-//	    taskENTER_CRITICAL();
-//	    /* enqueue data for transmission */
-//	NVIC_DisableIRQ(ETH_IRQn);
-////
-//	    wr_err = tcp_write(tpcb, ptr->payload, ptr->len, 1);
-//		 //   taskEXIT_CRITICAL();
-//
-//		//HAL_NVIC_EnableIRQ(ETH_IRQn);
-//	//	NVIC_DisableIRQ(ETH_IRQn);
-//	   // taskENTER_CRITICAL();
-//
-//			tcp_output(tpcb);
-//		  //  taskEXIT_CRITICAL();
-//
-//			HAL_NVIC_EnableIRQ(ETH_IRQn);
-//
-//
-//		    taskEXIT_CRITICAL();
-//
-//	    if (wr_err == ERR_OK)
-//	    {
-//	      u16_t plen;
-//	      u8_t freed;
-//
-//	      plen = ptr->len;
-//
-//	      /* continue with next pbuf in chain (if any) */
-//	      es->p = ptr->next;
-//
-//	      if(es->p != NULL)
-//	      {
-//	        /* increment reference count for es->p */
-//	        pbuf_ref(es->p);
-//	      }
-//
-//	     /* chop first pbuf from chain */
-//	      do
-//	      {
-//	        /* try hard to free pbuf */
-//	        freed = pbuf_free(ptr);
-//	      }
-//	      while(freed == 0);
-//	     /* we can read more data now */
-//	    tcp_recved(tpcb, plen);
-//	   }
-//	   else if(wr_err == ERR_MEM)
-//	   {
-//	      /* we are low on memory, try later / harder, defer to poll */
-//	     es->p = ptr;
-//	   }
-//	   else
-//	   {
-//	     /* other problem ?? */
-//	   }
-//	  }
-//}
-
-
 
 
 static void tcp_client_connection_close(struct tcp_pcb *tpcb,
